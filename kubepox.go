@@ -8,6 +8,7 @@ import (
 	"k8s.io/kubernetes/pkg/apis/extensions"
 	"k8s.io/kubernetes/pkg/labels"
 
+	apiu "k8s.io/kubernetes/pkg/api/unversioned"
 	client "k8s.io/kubernetes/pkg/client/unversioned"
 )
 
@@ -58,8 +59,11 @@ func ListPoliciesPerPod(c *client.Client, pod *api.Pod) (*extensions.NetworkPoli
 
 	// Iterate over all policies and find the one that apply to the pod.
 	for _, policy := range allPolicies.Items {
-		policySelector := labels.Set(policy.Spec.PodSelector.MatchLabels).AsSelector()
-		if policySelector.Matches(podLabels) {
+		selector, err := apiu.LabelSelectorAsSelector(&policy.Spec.PodSelector)
+		if err != nil {
+			return nil, err
+		}
+		if selector.Matches(podLabels) {
 			matchedPolicies.Items = append(matchedPolicies.Items, policy)
 		}
 	}
@@ -69,15 +73,14 @@ func ListPoliciesPerPod(c *client.Client, pod *api.Pod) (*extensions.NetworkPoli
 
 // ListPodsPerPolicy returns all the Pods that are affected by a policy.
 func ListPodsPerPolicy(c *client.Client, np *extensions.NetworkPolicy) (*api.PodList, error) {
-	labels := labels.Set(np.Spec.PodSelector.MatchLabels)
-	selector := np.Spec.PodSelector.MatchExpressions
 
-	// Todo: Implement the selector logic. Today will only implement the MatchLabels logic.
-	fmt.Printf("labels: %+v\n", labels)
-	fmt.Printf("selector: %+v\n", selector)
+	selector, err := apiu.LabelSelectorAsSelector(&np.Spec.PodSelector)
+	if err != nil {
+		return nil, err
+	}
 
 	// Match pods based on the Label Selector that came with the policy
-	matchedPods, err := c.Pods("").List(api.ListOptions{LabelSelector: labels.AsSelector()})
+	matchedPods, err := c.Pods("").List(api.ListOptions{LabelSelector: selector})
 	if err != nil {
 		return nil, err
 	}
