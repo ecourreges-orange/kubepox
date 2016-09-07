@@ -5,11 +5,14 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
+	"text/tabwriter"
 
 	"github.com/aporeto-inc/kubepox"
 
 	"github.com/docopt/docopt-go"
 	"k8s.io/kubernetes/pkg/api"
+	apiu "k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/apis/extensions"
 	client "k8s.io/kubernetes/pkg/client/unversioned"
 	"k8s.io/kubernetes/pkg/client/unversioned/clientcmd"
@@ -28,7 +31,7 @@ func main() {
   kubepox [--config <config>][--namespace <namespace>] get-all (policies|pods)
   kubepox [--config <config>][--namespace <namespace>] get-pods <policy>
   kubepox [--config <config>][--namespace <namespace>] get-policies <pod>
-  kubepox [--config <config>][--namespace <namespace>] get-rules <pod>
+  kubepox [--config <config>][--namespace <namespace>] get-rules <pod> [human]
 
   Options:
 	--namespace=NAMESPACE Namespace to run the query in
@@ -74,9 +77,10 @@ func main() {
 			os.Exit(1)
 		}
 		renderPolicies(policies)
-
-		// Display all pods. Similar to kubectl describe pods in json
-	} else if arguments["get-all"].(bool) && arguments["pods"].(bool) {
+		os.Exit(0)
+	}
+	// Display all pods. Similar to kubectl describe pods in json
+	if arguments["get-all"].(bool) && arguments["pods"].(bool) {
 
 		pods, err := myClient.Pods(namespace).List(api.ListOptions{})
 		if err != nil {
@@ -84,9 +88,11 @@ func main() {
 			os.Exit(1)
 		}
 		renderPods(pods)
+		os.Exit(0)
+	}
 
-		// Get all the pods that get affected by the policy
-	} else if arguments["get-pods"].(bool) {
+	// Get all the pods that get affected by the policy
+	if arguments["get-pods"].(bool) {
 		// Get the Policy in argument
 		np, err := myClient.Extensions().NetworkPolicies(namespace).Get(arguments["<policy>"].(string))
 		if err != nil {
@@ -105,9 +111,11 @@ func main() {
 		}
 		fmt.Printf("Matched pods for policy %s :\n", np.Name)
 		renderPods(matchedPods)
+		os.Exit(0)
+	}
 
-		// Get all the policies that get applied to a Pod.
-	} else if arguments["get-policies"].(bool) {
+	// Get all the policies that get applied to a Pod.
+	if arguments["get-policies"].(bool) {
 
 		pod, err := myClient.Pods(namespace).Get(arguments["<pod>"].(string))
 		if err != nil {
@@ -127,9 +135,11 @@ func main() {
 		}
 		fmt.Printf("Applied policies for pod %s :\n", pod.Name)
 		renderPolicies(matchedPolicies)
+		os.Exit(0)
+	}
 
-		// Get all the IngressRules that get applied to a Pod.
-	} else if arguments["get-rules"].(bool) {
+	// Get all the IngressRules that get applied to a Pod.
+	if arguments["get-rules"].(bool) {
 
 		pod, err := myClient.Pods(namespace).Get(arguments["<pod>"].(string))
 		if err != nil {
@@ -149,6 +159,10 @@ func main() {
 			os.Exit(1)
 		}
 		fmt.Printf("Applied rules for pod %s :\n", pod.Name)
+		if arguments["human"].(bool) {
+			renderIngressRulesHuman(matchedRules)
+			os.Exit(0)
+		}
 		renderIngressRules(matchedRules)
 
 	}
@@ -176,4 +190,49 @@ func renderIngressRules(ingressRules *[]extensions.NetworkPolicyIngressRule) {
 		pp, _ := json.MarshalIndent(&rule, "", "   ")
 		fmt.Println(string(pp))
 	}
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func entryFromRule(rule *extensions.NetworkPolicyIngressRule, ruleCount, entryCount int) (string, error) {
+	entryString := ""
+	entryString += strconv.Itoa(ruleCount+1) + "\t" + strconv.Itoa(entryCount+1) + "\t"
+	if len(rule.From) > entryCount {
+		selector, err := apiu.LabelSelectorAsSelector(rule.From[entryCount].PodSelector)
+		if err != nil {
+			return "", err
+		}
+		entryString += selector.String()
+	}
+	entryString += "\t"
+	if len(rule.Ports) > entryCount {
+		entryString += string(*rule.Ports[entryCount].Protocol)
+		entryString += ":"
+		entryString += rule.Ports[entryCount].Port.String()
+	}
+	entryString += "\t\n"
+	return entryString, nil
+}
+
+func renderIngressRulesHuman(ingressRules *[]extensions.NetworkPolicyIngressRule) {
+	const padding = 3
+	w := tabwriter.NewWriter(os.Stdout, 20, 0, padding, '-', tabwriter.AlignRight|tabwriter.Debug)
+	fmt.Fprintln(w, "RULE\tENTRY\tPOD SELECTOR\tPORT MATCH\t")
+	for ruleCount, rule := range *ingressRules {
+		maxLen := max(len(rule.From), len(rule.Ports))
+		for entryCount := 0; entryCount < maxLen; entryCount++ {
+			entryString, err := entryFromRule(&rule, ruleCount, entryCount)
+			if err != nil {
+				fmt.Println("error while trying to render")
+				os.Exit(1)
+			}
+			fmt.Fprintln(w, entryString)
+		}
+	}
+	w.Flush()
 }
