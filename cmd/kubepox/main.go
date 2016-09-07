@@ -158,7 +158,7 @@ func main() {
 			fmt.Printf("Couldn't get all the rules: %v\n", err)
 			os.Exit(1)
 		}
-		fmt.Printf("Applied rules for pod %s :\n", pod.Name)
+		fmt.Printf("Allowed traffic rules for pod %s :\n\n", pod.Name)
 		if arguments["human"].(bool) {
 			renderIngressRulesHuman(matchedRules)
 			os.Exit(0)
@@ -220,9 +220,8 @@ func entryFromRule(rule *extensions.NetworkPolicyIngressRule, ruleCount, entryCo
 }
 
 func renderIngressRulesHuman(ingressRules *[]extensions.NetworkPolicyIngressRule) {
-	const padding = 3
-	w := tabwriter.NewWriter(os.Stdout, 20, 0, padding, '-', tabwriter.AlignRight|tabwriter.Debug)
-	fmt.Fprintln(w, "RULE\tENTRY\tPOD SELECTOR\tPORT MATCH\t")
+	w := tabwriter.NewWriter(os.Stdout, 10, 0, 3, '-', tabwriter.AlignRight|tabwriter.Debug)
+	fmt.Fprintln(w, "RULE\tENTRY\tPOD SELECTOR\tAND PORT MATCH\t")
 	for ruleCount, rule := range *ingressRules {
 		maxLen := max(len(rule.From), len(rule.Ports))
 		for entryCount := 0; entryCount < maxLen; entryCount++ {
@@ -231,7 +230,7 @@ func renderIngressRulesHuman(ingressRules *[]extensions.NetworkPolicyIngressRule
 				fmt.Println("error while trying to render")
 				os.Exit(1)
 			}
-			fmt.Fprintln(w, entryString)
+			fmt.Fprint(w, entryString)
 		}
 	}
 	w.Flush()

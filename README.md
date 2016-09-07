@@ -27,3 +27,80 @@ Options:
 * `kubepox get-pods`  retrieves the  podList of affected pods based on a specific policy.
 * `kubepox get-policies` retrieves all the policies that apply to a specific pod
 * `kubepox get-rules` retrieves all the rules that apply to a specific rule (union of policy rules)
+
+## Example: Rules applied per pod
+
+It is now very easy to see the agglomerate of all the rules that get applied to your Pods. For example:
+
+```
+sharma:kubepox bvandewa$ ./kubepox  get-rules redis-django human
+Allowed traffic rules for pod redis-django :
+
+------RULE|-----ENTRY|----------------------------------------------------POD SELECTOR|---AND PORT MATCH|
+---------1|---------1|----------------------------------------here=frontend,there=ceci|---------tcp:8000|
+---------1|---------2|-------------------------------------------------------test=this|-----------------|
+---------2|---------1|---role=frontend,testads in (asda,asdd,asdr),tet=tatata,web=ceci|---------tcp:6379|
+---------2|---------2|-------------------------------------------------------test=this|---------udp:5000|
+```
+
+This comes from the following policies that the pod `redis-django` matches.
+
+
+Those policies:
+
+```
+apiVersion: extensions/v1beta1
+kind: NetworkPolicy
+metadata:
+ name: test-network-policy
+spec:
+ podSelector:
+  matchLabels:
+    role: db
+ ingress:
+  - from:
+     - podSelector:
+        matchLabels:
+         role: frontend
+         web: ceci
+         tet: tatata
+        matchExpressions:
+         - key: testads
+           operator: In
+           values: [asdr,asda,asdd]
+     - podSelector:
+        matchLabels:
+          test: this
+    ports:
+     - protocol: tcp
+       port: 6379
+     - protocol: udp
+       port: 5000
+
+```
+
+And
+
+```
+apiVersion: extensions/v1beta1
+kind: NetworkPolicy
+metadata:
+ name: test-network-policy
+spec:
+ podSelector:
+  matchLabels:
+    role: db
+ ingress:
+  - from:
+     - podSelector:
+        matchLabels:
+         here: frontend
+         there: ceci
+     - podSelector:
+        matchLabels:
+          test: this
+    ports:
+     - protocol: tcp
+       port: 8000
+
+```
