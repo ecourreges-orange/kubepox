@@ -66,6 +66,15 @@ func ListPoliciesPerPod(pod *api.Pod, allPolicies *extensions.NetworkPolicyList)
 	return &matchedPolicies, nil
 }
 
+// ListIngressRulesPerPod Generate a set of IngressRules that apply to the pod given in parameter.
+func ListIngressRulesPerPod(pod *api.Pod, allPolicies *extensions.NetworkPolicyList) (*[]extensions.NetworkPolicyIngressRule, error) {
+	matchedPolicies, err := ListPoliciesPerPod(pod, allPolicies)
+	if err != nil {
+		return nil, err
+	}
+	return ingressSetGenerator(matchedPolicies)
+}
+
 // ListPodsPerPolicy returns all the Pods that are affected by a policy out of the list.
 func ListPodsPerPolicy(np *extensions.NetworkPolicy, allPods *api.PodList) (*api.PodList, error) {
 
@@ -86,4 +95,15 @@ func ListPodsPerPolicy(np *extensions.NetworkPolicy, allPods *api.PodList) (*api
 	}
 
 	return &matchedPods, nil
+}
+
+// generate a new table of IngressRules which are the Logical OR of all the existing IngressRules from all the policies given in parameter
+func ingressSetGenerator(policies *extensions.NetworkPolicyList) (*[]extensions.NetworkPolicyIngressRule, error) {
+	ingressRules := []extensions.NetworkPolicyIngressRule{}
+	for _, policy := range policies.Items {
+		for _, singleRule := range policy.Spec.Ingress {
+			ingressRules = append(ingressRules, singleRule)
+		}
+	}
+	return &ingressRules, nil
 }
