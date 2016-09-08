@@ -158,7 +158,7 @@ func main() {
 			fmt.Printf("Couldn't get all the rules: %v\n", err)
 			os.Exit(1)
 		}
-		fmt.Printf("Allowed traffic rules for pod %s :\n\n", pod.Name)
+		fmt.Printf("WhiteList for pod %s :\n\n", pod.Name)
 		if arguments["human"].(bool) {
 			renderIngressRulesHuman(matchedRules)
 			os.Exit(0)
@@ -166,6 +166,7 @@ func main() {
 		renderIngressRules(matchedRules)
 
 	}
+
 }
 
 func renderPolicies(policies *extensions.NetworkPolicyList) {
@@ -199,32 +200,43 @@ func max(a, b int) int {
 	return b
 }
 
+func portsRepresentation(rule *extensions.NetworkPolicyIngressRule) string {
+	if len(rule.Ports) == 0 {
+		return "ALL"
+	}
+	entryString := ""
+	for count, port := range rule.Ports {
+		entryString += string(*port.Protocol)
+		entryString += ":"
+		entryString += port.Port.String()
+		if count == len(rule.Ports)-1 {
+			break
+		}
+		entryString += ", "
+	}
+	return entryString
+}
+
 func entryFromRule(rule *extensions.NetworkPolicyIngressRule, ruleCount, entryCount int) (string, error) {
 	entryString := ""
 	entryString += strconv.Itoa(ruleCount+1) + "\t" + strconv.Itoa(entryCount+1) + "\t"
-	if len(rule.From) > entryCount {
-		selector, err := apiu.LabelSelectorAsSelector(rule.From[entryCount].PodSelector)
-		if err != nil {
-			return "", err
-		}
-		entryString += selector.String()
+
+	selector, err := apiu.LabelSelectorAsSelector(rule.From[entryCount].PodSelector)
+	if err != nil {
+		return "", err
 	}
+	entryString += selector.String()
 	entryString += "\t"
-	if len(rule.Ports) > entryCount {
-		entryString += string(*rule.Ports[entryCount].Protocol)
-		entryString += ":"
-		entryString += rule.Ports[entryCount].Port.String()
-	}
+	entryString += portsRepresentation(rule)
 	entryString += "\t\n"
 	return entryString, nil
 }
 
 func renderIngressRulesHuman(ingressRules *[]extensions.NetworkPolicyIngressRule) {
 	w := tabwriter.NewWriter(os.Stdout, 10, 0, 3, '-', tabwriter.AlignRight|tabwriter.Debug)
-	fmt.Fprintln(w, "RULE\tENTRY\tPOD SELECTOR\tAND PORT MATCH\t")
+	fmt.Fprintln(w, "RULE\tSELECTOR\tFROM PODS\tALLOWED TRAFFIC\t")
 	for ruleCount, rule := range *ingressRules {
-		maxLen := max(len(rule.From), len(rule.Ports))
-		for entryCount := 0; entryCount < maxLen; entryCount++ {
+		for entryCount := 0; entryCount < len(rule.From); entryCount++ {
 			entryString, err := entryFromRule(&rule, ruleCount, entryCount)
 			if err != nil {
 				fmt.Println("error while trying to render")
