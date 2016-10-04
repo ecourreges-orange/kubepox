@@ -469,6 +469,13 @@ func TestSingleLabelMatch(t *testing.T) {
 		},
 	}
 
+	podList := api.PodList{
+		Items: []api.Pod{pod1,
+			pod2,
+			pod3,
+		},
+	}
+
 	// Testing frontend
 	t.Log("Testing Pod frontend single policy match")
 	result, _ := ListPoliciesPerPod(&pod1, &policyList)
@@ -506,4 +513,30 @@ func TestSingleLabelMatch(t *testing.T) {
 		t.Errorf("Expected RuleMatch for BusinessBackend")
 	}
 
+	// Testing Policy1:
+	t.Log("Testing PolicyFrontend Policy")
+	resultPods, _ := ListPodsPerPolicy(&policy1, &podList)
+	if len(resultPods.Items) != 1 {
+		t.Errorf("Expected 1 Pod match for policy frontend, got %d", len(resultPods.Items))
+	}
+	if !reflect.DeepEqual(resultPods.Items[0], pod1) {
+		t.Errorf("Failed pod match for Frontend ListPodsPerPolicy")
+	}
+
+	// Testing Policy2:
+	t.Log("Testing BusinessBackend Policy")
+	resultPods, _ = ListPodsPerPolicy(&policy2, &podList)
+	if len(resultPods.Items) != 1 {
+		t.Errorf("Expected 1 Pod match for policy frontend, got %d", len(resultPods.Items))
+	}
+	if !reflect.DeepEqual(resultPods.Items[0], pod3) {
+		t.Errorf("Failed pod match for Frontend ListPodsPerPolicy")
+	}
+
+	// Testing Policy 3
+	t.Log("Testing Database Policy")
+	resultPods, _ = ListPodsPerPolicy(&policy3, &podList)
+	if len(resultPods.Items) != 0 {
+		t.Errorf("Expected 1 Pod match for policy frontend, got %d", len(resultPods.Items))
+	}
 }
