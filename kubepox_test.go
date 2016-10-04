@@ -2,6 +2,7 @@ package kubepox
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -305,8 +306,109 @@ const pod3s = `{
          }
       ]
    }
-}
-`
+}`
+
+// pod4 got multiple labels: "role": "WebFrontend", "job": "worker",
+const pod4s = `{
+   "metadata": {
+      "name": "pod4",
+      "namespace": "default",
+      "selfLink": "/api/v1/namespaces/default/pods/frontend",
+      "uid": "e4913a63-89c2-11e6-a046-0800277021d9",
+      "resourceVersion": "10956",
+      "creationTimestamp": "2016-10-03T23:41:23Z",
+      "labels": {
+         "role": "WebFrontend",
+         "job": "worker"
+      }
+   },
+   "spec": {
+      "volumes": [
+         {
+            "name": "default-token-nxt3i",
+            "secret": {
+               "secretName": "default-token-nxt3i",
+               "defaultMode": 420
+            }
+         }
+      ],
+      "containers": [
+         {
+            "name": "redismaster",
+            "image": "redis",
+            "ports": [
+               {
+                  "containerPort": 6379,
+                  "protocol": "TCP"
+               }
+            ],
+            "resources": {
+               "requests": {
+                  "cpu": "100m",
+                  "memory": "100Mi"
+               }
+            },
+            "volumeMounts": [
+               {
+                  "name": "default-token-nxt3i",
+                  "readOnly": true,
+                  "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount"
+               }
+            ],
+            "terminationMessagePath": "/dev/termination-log",
+            "imagePullPolicy": "Always"
+         }
+      ],
+      "restartPolicy": "Always",
+      "terminationGracePeriodSeconds": 30,
+      "dnsPolicy": "ClusterFirst",
+      "serviceAccountName": "default",
+      "nodeName": "127.0.0.1",
+      "securityContext": {}
+   },
+   "status": {
+      "phase": "Running",
+      "conditions": [
+         {
+            "type": "Initialized",
+            "status": "True",
+            "lastProbeTime": null,
+            "lastTransitionTime": "2016-10-03T23:41:23Z"
+         },
+         {
+            "type": "Ready",
+            "status": "True",
+            "lastProbeTime": null,
+            "lastTransitionTime": "2016-10-03T23:41:28Z"
+         },
+         {
+            "type": "PodScheduled",
+            "status": "True",
+            "lastProbeTime": null,
+            "lastTransitionTime": "2016-10-03T23:41:23Z"
+         }
+      ],
+      "hostIP": "127.0.0.1",
+      "podIP": "172.17.0.3",
+      "startTime": "2016-10-03T23:41:23Z",
+      "containerStatuses": [
+         {
+            "name": "redismaster",
+            "state": {
+               "running": {
+                  "startedAt": "2016-10-03T23:41:27Z"
+               }
+            },
+            "lastState": {},
+            "ready": true,
+            "restartCount": 0,
+            "image": "redis",
+            "imageID": "docker://sha256:1aa84b1b434e43bbd5a5577e334050e9bc5984aec570c981c7357e6bb6a6df1f",
+            "containerID": "docker://8e00084abde70221b123263e0fcff055a88ce8141965d8143875974a5d71d078"
+         }
+      ]
+   }
+}`
 
 // Policy matches label "role": "WebFrontend".
 const policy1s = `{
@@ -445,6 +547,46 @@ const policy3s = `{
    }
 }`
 
+// Policy matches label "role": "Database".
+const policy4s = `{
+   "metadata": {
+      "name": "database-policy",
+      "namespace": "default",
+      "selfLink": "/apis/extensions/v1beta1/namespaces/default/networkpolicies/database-policy",
+      "uid": "22d227d2-89b1-11e6-a046-0800277021d9",
+      "resourceVersion": "2484",
+      "generation": 1,
+      "creationTimestamp": "2016-10-03T21:34:16Z"
+   },
+   "spec": {
+      "podSelector": {
+         "matchLabels": {
+            "job": "worker"
+         }
+      },
+      "ingress": [
+         {
+            "from": [
+               {
+                  "podSelector": {
+                     "matchLabels": {
+                        "xcvxcv": "asdasd"
+                     }
+                  }
+               },
+               {
+                  "podSelector": {
+                     "matchLabels": {
+                        "ZXZX": "qwewqeqwe"
+                     }
+                  }
+               }
+            ]
+         }
+      ]
+   }
+}`
+
 func TestSingleLabelMatch(t *testing.T) {
 	pod1 := api.Pod{}
 	pod2 := api.Pod{}
@@ -539,4 +681,51 @@ func TestSingleLabelMatch(t *testing.T) {
 	if len(resultPods.Items) != 0 {
 		t.Errorf("Expected 1 Pod match for policy frontend, got %d", len(resultPods.Items))
 	}
+}
+
+func TestMultipleLabelMatch(t *testing.T) {
+	pod4 := api.Pod{}
+
+	policy1 := extensions.NetworkPolicy{}
+	policy2 := extensions.NetworkPolicy{}
+	policy3 := extensions.NetworkPolicy{}
+	policy4 := extensions.NetworkPolicy{}
+
+	json.Unmarshal([]byte(pod4s), &pod4)
+
+	json.Unmarshal([]byte(policy1s), &policy1)
+	json.Unmarshal([]byte(policy2s), &policy2)
+	json.Unmarshal([]byte(policy3s), &policy3)
+	json.Unmarshal([]byte(policy4s), &policy4)
+
+	policyList := extensions.NetworkPolicyList{
+		Items: []extensions.NetworkPolicy{policy1,
+			policy2,
+			policy3,
+			policy4,
+		},
+	}
+
+	fmt.Printf("%+v", pod4.GetLabels())
+
+	expectedPolicies := extensions.NetworkPolicyList{Items: []extensions.NetworkPolicy{policy1, policy4}}
+	expectedRules := append(policy1.Spec.Ingress, policy4.Spec.Ingress...)
+	// Testing pod4
+	t.Log("Testing Pod 4 Multible policy match")
+	resultPolicies, _ := ListPoliciesPerPod(&pod4, &policyList)
+	if len(resultPolicies.Items) != 2 {
+		t.Errorf("Expected 2 policy match for pod4, got %d", len(resultPolicies.Items))
+	}
+	if !reflect.DeepEqual(*resultPolicies, expectedPolicies) {
+		t.Errorf("Expected Policy Match for pod4: \n got %+v ,\n expected %+v", resultPolicies, expectedPolicies)
+	}
+
+	resultRules, _ := ListIngressRulesPerPod(&pod4, &policyList)
+	if len(*resultRules) != 2 {
+		t.Errorf("Expected 2 rule match for pod4, got %d", len(*resultRules))
+	}
+	if !reflect.DeepEqual(*resultRules, expectedRules) {
+		t.Errorf("Expected rule match for pod4: \n got %+v ,\n  expected %+v", resultRules, expectedRules)
+	}
+
 }
