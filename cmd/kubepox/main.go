@@ -14,7 +14,7 @@ import (
 	"k8s.io/kubernetes/pkg/api"
 	apiu "k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/apis/extensions"
-	client "k8s.io/kubernetes/pkg/client/unversioned"
+	client "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
 	"k8s.io/kubernetes/pkg/client/unversioned/clientcmd"
 )
 
@@ -62,7 +62,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	myClient, err := client.New(config)
+	myClient, err := client.NewForConfig(config)
 	if err != nil {
 		fmt.Printf("Error creating REST Kube Client: %v\n", err)
 		os.Exit(1)
