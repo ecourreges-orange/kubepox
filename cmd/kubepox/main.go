@@ -12,8 +12,8 @@ import (
 
 	"github.com/docopt/docopt-go"
 	"k8s.io/kubernetes/pkg/api"
-	apiu "k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/apis/extensions"
+	metav1 "k8s.io/kubernetes/pkg/apis/meta/v1"
 	client "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
 	"k8s.io/kubernetes/pkg/client/unversioned/clientcmd"
 )
@@ -94,7 +94,7 @@ func main() {
 	// Get all the pods that get affected by the policy
 	if arguments["get-pods"].(bool) {
 		// Get the Policy in argument
-		np, err := myClient.Extensions().NetworkPolicies(namespace).Get(arguments["<policy>"].(string))
+		np, err := myClient.Extensions().NetworkPolicies(namespace).Get(arguments["<policy>"].(string), metav1.GetOptions{})
 		if err != nil {
 			fmt.Printf("Couldn't get Network Policy: %v\n", err)
 			os.Exit(1)
@@ -117,7 +117,7 @@ func main() {
 	// Get all the policies that get applied to a Pod.
 	if arguments["get-policies"].(bool) {
 
-		pod, err := myClient.Pods(namespace).Get(arguments["<pod>"].(string))
+		pod, err := myClient.Pods(namespace).Get(arguments["<pod>"].(string), metav1.GetOptions{})
 		if err != nil {
 			fmt.Printf("Couldn't get target pod %v\n", err)
 			os.Exit(1)
@@ -141,7 +141,7 @@ func main() {
 	// Get all the IngressRules that get applied to a Pod.
 	if arguments["get-rules"].(bool) {
 
-		pod, err := myClient.Pods(namespace).Get(arguments["<pod>"].(string))
+		pod, err := myClient.Pods(namespace).Get(arguments["<pod>"].(string), metav1.GetOptions{})
 		if err != nil {
 			fmt.Printf("Couldn't get target pod %v\n", err)
 			os.Exit(1)
@@ -221,7 +221,7 @@ func entryFromRule(rule *extensions.NetworkPolicyIngressRule, ruleCount, entryCo
 	entryString := ""
 	entryString += strconv.Itoa(ruleCount+1) + "\t" + strconv.Itoa(entryCount+1) + "\t"
 
-	selector, err := apiu.LabelSelectorAsSelector(rule.From[entryCount].PodSelector)
+	selector, err := metav1.LabelSelectorAsSelector(rule.From[entryCount].PodSelector)
 	if err != nil {
 		return "", err
 	}
