@@ -3,9 +3,8 @@ package kubepox
 import (
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/apis/extensions"
+	metav1 "k8s.io/kubernetes/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/labels"
-
-	apiu "k8s.io/kubernetes/pkg/api/unversioned"
 )
 
 // ListPoliciesPerPod returns all the NetworkPolicies that are associated with a pod.
@@ -18,7 +17,7 @@ func ListPoliciesPerPod(pod *api.Pod, allPolicies *extensions.NetworkPolicyList)
 
 	// Iterate over all policies and find the one that apply to the pod.
 	for _, policy := range allPolicies.Items {
-		selector, err := apiu.LabelSelectorAsSelector(&policy.Spec.PodSelector)
+		selector, err := metav1.LabelSelectorAsSelector(&policy.Spec.PodSelector)
 		if err != nil {
 			return nil, err
 		}
@@ -42,7 +41,7 @@ func ListIngressRulesPerPod(pod *api.Pod, allPolicies *extensions.NetworkPolicyL
 // ListPodsPerPolicy returns all the Pods that are affected by a policy out of the list.
 func ListPodsPerPolicy(np *extensions.NetworkPolicy, allPods *api.PodList) (*api.PodList, error) {
 
-	selector, err := apiu.LabelSelectorAsSelector(&np.Spec.PodSelector)
+	selector, err := metav1.LabelSelectorAsSelector(&np.Spec.PodSelector)
 	if err != nil {
 		return nil, err
 	}
