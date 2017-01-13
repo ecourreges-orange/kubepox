@@ -1,7 +1,7 @@
 # kubepox
 
 [![Twitter URL](https://img.shields.io/badge/twitter-follow-blue.svg)](https://twitter.com/aporeto_trireme) [![Slack URL](https://img.shields.io/badge/slack-join-green.svg)](https://triremehq.slack.com/messages/general/) [![Documentation](https://img.shields.io/badge/docs-godoc-blue.svg)](https://godoc.org/github.com/aporeto-inc/trireme)
-
+[![Analytics](https://ga-beacon.appspot.com/UA-90298211-1/welcome-page)](https://github.com/igrigorik/ga-beacon)
 
 Kubernetes network Policy eXploration tool
 
