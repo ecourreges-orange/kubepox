@@ -1,0 +1,18 @@
+package: github.com/aporeto-inc/kubepox
+import:
+- package: github.com/docopt/docopt-go
+- package: k8s.io/apimachinery
+  # Temporary workaround for sluggish client-go library sync:
+  version: 02fccf9462f0fb0287e82cb8a0f1d03b05f8d704
+  subpackages:
+  - pkg/apis/meta/v1
+  - pkg/runtime
+  - pkg/watch
+- package: k8s.io/client-go
+  subpackages:
+  - pkg/api
+  - pkg/apis/extensions
+  - tools/clientcmd
+- package: k8s.io/kubernetes
+  subpackages:
+  - pkg/client/clientset_generated/internalclientset

@@ -11,11 +11,11 @@ import (
 	"github.com/aporeto-inc/kubepox"
 
 	"github.com/docopt/docopt-go"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/kubernetes/pkg/api"
 	"k8s.io/kubernetes/pkg/apis/extensions"
-	metav1 "k8s.io/kubernetes/pkg/apis/meta/v1"
 	client "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
-	"k8s.io/kubernetes/pkg/client/unversioned/clientcmd"
 )
 
 //Todo: Make it clean and a real executable with flags.
@@ -71,7 +71,7 @@ func main() {
 	// Display all policies. Similar to kubectl describe policies in json
 	if arguments["get-all"].(bool) && arguments["policies"].(bool) {
 
-		policies, err := myClient.Extensions().NetworkPolicies(namespace).List(api.ListOptions{})
+		policies, err := myClient.Extensions().NetworkPolicies(namespace).List(metav1.ListOptions{})
 		if err != nil {
 			fmt.Printf("Couldn't get Network Policy: %v\n", err)
 			os.Exit(1)
@@ -82,7 +82,7 @@ func main() {
 	// Display all pods. Similar to kubectl describe pods in json
 	if arguments["get-all"].(bool) && arguments["pods"].(bool) {
 
-		pods, err := myClient.Pods(namespace).List(api.ListOptions{})
+		pods, err := myClient.Pods(namespace).List(metav1.ListOptions{})
 		if err != nil {
 			fmt.Printf("Couldn't get all the pods %v\n", err)
 			os.Exit(1)
@@ -99,7 +99,7 @@ func main() {
 			fmt.Printf("Couldn't get Network Policy: %v\n", err)
 			os.Exit(1)
 		}
-		allPods, err := myClient.Pods(namespace).List(api.ListOptions{})
+		allPods, err := myClient.Pods(namespace).List(metav1.ListOptions{})
 		if err != nil {
 			fmt.Printf("Couldn't get all the pods %v\n", err)
 			os.Exit(1)
@@ -123,7 +123,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		allPolicies, err := myClient.Extensions().NetworkPolicies(namespace).List(api.ListOptions{})
+		allPolicies, err := myClient.Extensions().NetworkPolicies(namespace).List(metav1.ListOptions{})
 		if err != nil {
 			fmt.Printf("Couldn't get all Network Policies: %v\n", err)
 		}
@@ -147,7 +147,7 @@ func main() {
 			os.Exit(1)
 		}
 
-		allPolicies, err := myClient.Extensions().NetworkPolicies(namespace).List(api.ListOptions{})
+		allPolicies, err := myClient.Extensions().NetworkPolicies(namespace).List(metav1.ListOptions{})
 		if err != nil {
 			fmt.Printf("Couldn't get all Network Policies: %v\n", err)
 			os.Exit(1)
