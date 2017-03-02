@@ -2,733 +2,426 @@ package kubepox
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
 	"testing"
 
-	"k8s.io/client-go/pkg/api"
-	"k8s.io/client-go/pkg/apis/extensions"
+	api "k8s.io/client-go/pkg/api/v1"
+	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 )
 
 // pod1 has one single label: "role": "WebFrontend"
 const pod1s = `{
-   "Name": "frontend",
-   "GenerateName": "",
-   "Namespace": "demo",
-   "SelfLink": "/api/v1/namespaces/demo/pods/frontend",
-   "UID": "3d7d45f4-c609-11e6-a4fd-06e1269025c9",
-   "ResourceVersion": "4964585",
-   "Generation": 0,
-   "CreationTimestamp": "2016-12-19T16:36:07Z",
-   "DeletionTimestamp": null,
-   "DeletionGracePeriodSeconds": null,
-   "Labels": {
-      "role": "WebFrontend"
-   },
-   "Annotations": null,
-   "OwnerReferences": null,
-   "Finalizers": null,
-   "ClusterName": "",
-   "Spec": {
-      "Volumes": [
-         {
-            "Name": "default-token-79ah4",
-            "HostPath": null,
-            "EmptyDir": null,
-            "GCEPersistentDisk": null,
-            "AWSElasticBlockStore": null,
-            "GitRepo": null,
-            "Secret": {
-               "SecretName": "default-token-79ah4",
-               "Items": null,
-               "DefaultMode": 420
+    "apiVersion": "v1",
+    "kind": "Pod",
+    "metadata": {
+        "creationTimestamp": "2017-02-28T19:18:52Z",
+        "labels": {
+            "role": "WebFrontend"
+        },
+        "name": "frontend",
+        "namespace": "demo",
+        "resourceVersion": "543485",
+        "selfLink": "/api/v1/namespaces/demo/pods/frontend",
+        "uid": "bd9c01fb-fdea-11e6-91a2-42010a8001b8"
+    },
+    "spec": {
+        "containers": [
+            {
+                "image": "redis",
+                "imagePullPolicy": "Always",
+                "name": "redismaster",
+                "ports": [
+                    {
+                        "containerPort": 6379,
+                        "protocol": "TCP"
+                    }
+                ],
+                "resources": {
+                    "requests": {
+                        "cpu": "100m",
+                        "memory": "100Mi"
+                    }
+                },
+                "terminationMessagePath": "/dev/termination-log",
+                "volumeMounts": [
+                    {
+                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                        "name": "default-token-kb5rn",
+                        "readOnly": true
+                    }
+                ]
+            }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "nodeName": "gke-test48-default-pool-1e87d955-mwh5",
+        "restartPolicy": "Always",
+        "securityContext": {},
+        "serviceAccount": "default",
+        "serviceAccountName": "default",
+        "terminationGracePeriodSeconds": 30,
+        "volumes": [
+            {
+                "name": "default-token-kb5rn",
+                "secret": {
+                    "defaultMode": 420,
+                    "secretName": "default-token-kb5rn"
+                }
+            }
+        ]
+    },
+    "status": {
+        "conditions": [
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2017-02-28T19:18:52Z",
+                "status": "True",
+                "type": "Initialized"
             },
-            "NFS": null,
-            "ISCSI": null,
-            "Glusterfs": null,
-            "PersistentVolumeClaim": null,
-            "RBD": null,
-            "Quobyte": null,
-            "FlexVolume": null,
-            "Cinder": null,
-            "CephFS": null,
-            "Flocker": null,
-            "DownwardAPI": null,
-            "FC": null,
-            "AzureFile": null,
-            "ConfigMap": null,
-            "VsphereVolume": null,
-            "AzureDisk": null,
-            "PhotonPersistentDisk": null
-         }
-      ],
-      "InitContainers": null,
-      "Containers": [
-         {
-            "Name": "redismaster",
-            "Image": "redis",
-            "Command": null,
-            "Args": null,
-            "WorkingDir": "",
-            "Ports": [
-               {
-                  "Name": "",
-                  "HostPort": 0,
-                  "ContainerPort": 6379,
-                  "Protocol": "TCP",
-                  "HostIP": ""
-               }
-            ],
-            "Env": null,
-            "Resources": {
-               "Limits": null,
-               "Requests": {
-                  "cpu": "100m",
-                  "memory": "100Mi"
-               }
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2017-02-28T19:18:54Z",
+                "status": "True",
+                "type": "Ready"
             },
-            "VolumeMounts": [
-               {
-                  "Name": "default-token-79ah4",
-                  "ReadOnly": true,
-                  "MountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
-                  "SubPath": ""
-               }
-            ],
-            "LivenessProbe": null,
-            "ReadinessProbe": null,
-            "Lifecycle": null,
-            "TerminationMessagePath": "/dev/termination-log",
-            "ImagePullPolicy": "Always",
-            "SecurityContext": null,
-            "Stdin": false,
-            "StdinOnce": false,
-            "TTY": false
-         }
-      ],
-      "RestartPolicy": "Always",
-      "TerminationGracePeriodSeconds": 30,
-      "ActiveDeadlineSeconds": null,
-      "DNSPolicy": "ClusterFirst",
-      "NodeSelector": null,
-      "ServiceAccountName": "default",
-      "NodeName": "ip-10-0-0-4.us-west-2.compute.internal",
-      "SecurityContext": {
-         "HostNetwork": false,
-         "HostPID": false,
-         "HostIPC": false,
-         "SELinuxOptions": null,
-         "RunAsUser": null,
-         "RunAsNonRoot": null,
-         "SupplementalGroups": null,
-         "FSGroup": null
-      },
-      "ImagePullSecrets": null,
-      "Hostname": "",
-      "Subdomain": "",
-      "Affinity": {
-         "NodeAffinity": null,
-         "PodAffinity": null,
-         "PodAntiAffinity": null
-      }
-   },
-   "Status": {
-      "Phase": "Running",
-      "Conditions": [
-         {
-            "Type": "Initialized",
-            "Status": "True",
-            "LastProbeTime": null,
-            "LastTransitionTime": "2016-12-19T16:36:07Z",
-            "Reason": "",
-            "Message": ""
-         },
-         {
-            "Type": "Ready",
-            "Status": "True",
-            "LastProbeTime": null,
-            "LastTransitionTime": "2016-12-19T16:36:11Z",
-            "Reason": "",
-            "Message": ""
-         },
-         {
-            "Type": "PodScheduled",
-            "Status": "True",
-            "LastProbeTime": null,
-            "LastTransitionTime": "2016-12-19T16:36:07Z",
-            "Reason": "",
-            "Message": ""
-         }
-      ],
-      "Message": "",
-      "Reason": "",
-      "HostIP": "10.0.0.4",
-      "PodIP": "10.2.66.72",
-      "StartTime": "2016-12-19T16:36:07Z",
-      "InitContainerStatuses": null,
-      "ContainerStatuses": [
-         {
-            "Name": "redismaster",
-            "State": {
-               "Waiting": null,
-               "Running": {
-                  "StartedAt": "2016-12-19T16:36:10Z"
-               },
-               "Terminated": null
-            },
-            "LastTerminationState": {
-               "Waiting": null,
-               "Running": null,
-               "Terminated": null
-            },
-            "Ready": true,
-            "RestartCount": 0,
-            "Image": "redis",
-            "ImageID": "docker://sha256:1c2ac2024e4b6d621cea1458923bdbd1806f2c7c50c8a7292e0e6551b8d768e3",
-            "ContainerID": "docker://e12e3b2b3be33b6436e9d2df23559b3829ff6c64989b6b4bb23d5d660808de63"
-         }
-      ]
-   }
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2017-02-28T19:18:52Z",
+                "status": "True",
+                "type": "PodScheduled"
+            }
+        ],
+        "containerStatuses": [
+            {
+                "containerID": "docker://48d8e102c086b5686abde297d983c3278af548a9551dc84facb8e77f5944bc75",
+                "image": "redis",
+                "imageID": "docker://sha256:1a8a9ee54eb755a427e00484a64fa4edbe9c2abe59ca468a4e452b343a2b57c2",
+                "lastState": {},
+                "name": "redismaster",
+                "ready": true,
+                "restartCount": 0,
+                "state": {
+                    "running": {
+                        "startedAt": "2017-02-28T19:18:53Z"
+                    }
+                }
+            }
+        ],
+        "hostIP": "10.128.0.8",
+        "phase": "Running",
+        "podIP": "10.4.2.7",
+        "startTime": "2017-02-28T19:18:52Z"
+    }
 }
-
         `
 
 // pod2 has one single label: "role": "External"
 const pod2s = `{
-   "Name": "external",
-   "GenerateName": "",
-   "Namespace": "demo",
-   "SelfLink": "/api/v1/namespaces/demo/pods/external",
-   "UID": "3d732f0d-c609-11e6-a4fd-06e1269025c9",
-   "ResourceVersion": "4964580",
-   "Generation": 0,
-   "CreationTimestamp": "2016-12-19T16:36:06Z",
-   "DeletionTimestamp": null,
-   "DeletionGracePeriodSeconds": null,
-   "Labels": {
-      "role": "External"
-   },
-   "Annotations": null,
-   "OwnerReferences": null,
-   "Finalizers": null,
-   "ClusterName": "",
-   "Spec": {
-      "Volumes": [
-         {
-            "Name": "default-token-79ah4",
-            "HostPath": null,
-            "EmptyDir": null,
-            "GCEPersistentDisk": null,
-            "AWSElasticBlockStore": null,
-            "GitRepo": null,
-            "Secret": {
-               "SecretName": "default-token-79ah4",
-               "Items": null,
-               "DefaultMode": 420
+    "apiVersion": "v1",
+    "kind": "Pod",
+    "metadata": {
+        "creationTimestamp": "2017-02-28T19:18:52Z",
+        "labels": {
+            "role": "External"
+        },
+        "name": "external",
+        "namespace": "demo",
+        "resourceVersion": "543486",
+        "selfLink": "/api/v1/namespaces/demo/pods/external",
+        "uid": "bd8de6cd-fdea-11e6-91a2-42010a8001b8"
+    },
+    "spec": {
+        "containers": [
+            {
+                "image": "redis",
+                "imagePullPolicy": "Always",
+                "name": "redismaster",
+                "ports": [
+                    {
+                        "containerPort": 80,
+                        "protocol": "TCP"
+                    }
+                ],
+                "resources": {
+                    "requests": {
+                        "cpu": "100m",
+                        "memory": "100Mi"
+                    }
+                },
+                "terminationMessagePath": "/dev/termination-log",
+                "volumeMounts": [
+                    {
+                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                        "name": "default-token-kb5rn",
+                        "readOnly": true
+                    }
+                ]
+            }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "nodeName": "gke-test48-default-pool-1e87d955-30r9",
+        "restartPolicy": "Always",
+        "securityContext": {},
+        "serviceAccount": "default",
+        "serviceAccountName": "default",
+        "terminationGracePeriodSeconds": 30,
+        "volumes": [
+            {
+                "name": "default-token-kb5rn",
+                "secret": {
+                    "defaultMode": 420,
+                    "secretName": "default-token-kb5rn"
+                }
+            }
+        ]
+    },
+    "status": {
+        "conditions": [
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2017-02-28T19:18:52Z",
+                "status": "True",
+                "type": "Initialized"
             },
-            "NFS": null,
-            "ISCSI": null,
-            "Glusterfs": null,
-            "PersistentVolumeClaim": null,
-            "RBD": null,
-            "Quobyte": null,
-            "FlexVolume": null,
-            "Cinder": null,
-            "CephFS": null,
-            "Flocker": null,
-            "DownwardAPI": null,
-            "FC": null,
-            "AzureFile": null,
-            "ConfigMap": null,
-            "VsphereVolume": null,
-            "AzureDisk": null,
-            "PhotonPersistentDisk": null
-         }
-      ],
-      "InitContainers": null,
-      "Containers": [
-         {
-            "Name": "redismaster",
-            "Image": "redis",
-            "Command": null,
-            "Args": null,
-            "WorkingDir": "",
-            "Ports": [
-               {
-                  "Name": "",
-                  "HostPort": 0,
-                  "ContainerPort": 80,
-                  "Protocol": "TCP",
-                  "HostIP": ""
-               }
-            ],
-            "Env": null,
-            "Resources": {
-               "Limits": null,
-               "Requests": {
-                  "cpu": "100m",
-                  "memory": "100Mi"
-               }
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2017-02-28T19:18:54Z",
+                "status": "True",
+                "type": "Ready"
             },
-            "VolumeMounts": [
-               {
-                  "Name": "default-token-79ah4",
-                  "ReadOnly": true,
-                  "MountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
-                  "SubPath": ""
-               }
-            ],
-            "LivenessProbe": null,
-            "ReadinessProbe": null,
-            "Lifecycle": null,
-            "TerminationMessagePath": "/dev/termination-log",
-            "ImagePullPolicy": "Always",
-            "SecurityContext": null,
-            "Stdin": false,
-            "StdinOnce": false,
-            "TTY": false
-         }
-      ],
-      "RestartPolicy": "Always",
-      "TerminationGracePeriodSeconds": 30,
-      "ActiveDeadlineSeconds": null,
-      "DNSPolicy": "ClusterFirst",
-      "NodeSelector": null,
-      "ServiceAccountName": "default",
-      "NodeName": "ip-10-0-0-4.us-west-2.compute.internal",
-      "SecurityContext": {
-         "HostNetwork": false,
-         "HostPID": false,
-         "HostIPC": false,
-         "SELinuxOptions": null,
-         "RunAsUser": null,
-         "RunAsNonRoot": null,
-         "SupplementalGroups": null,
-         "FSGroup": null
-      },
-      "ImagePullSecrets": null,
-      "Hostname": "",
-      "Subdomain": "",
-      "Affinity": {
-         "NodeAffinity": null,
-         "PodAffinity": null,
-         "PodAntiAffinity": null
-      }
-   },
-   "Status": {
-      "Phase": "Running",
-      "Conditions": [
-         {
-            "Type": "Initialized",
-            "Status": "True",
-            "LastProbeTime": null,
-            "LastTransitionTime": "2016-12-19T16:36:06Z",
-            "Reason": "",
-            "Message": ""
-         },
-         {
-            "Type": "Ready",
-            "Status": "True",
-            "LastProbeTime": null,
-            "LastTransitionTime": "2016-12-19T16:36:10Z",
-            "Reason": "",
-            "Message": ""
-         },
-         {
-            "Type": "PodScheduled",
-            "Status": "True",
-            "LastProbeTime": null,
-            "LastTransitionTime": "2016-12-19T16:36:06Z",
-            "Reason": "",
-            "Message": ""
-         }
-      ],
-      "Message": "",
-      "Reason": "",
-      "HostIP": "10.0.0.4",
-      "PodIP": "10.2.66.71",
-      "StartTime": "2016-12-19T16:36:06Z",
-      "InitContainerStatuses": null,
-      "ContainerStatuses": [
-         {
-            "Name": "redismaster",
-            "State": {
-               "Waiting": null,
-               "Running": {
-                  "StartedAt": "2016-12-19T16:36:09Z"
-               },
-               "Terminated": null
-            },
-            "LastTerminationState": {
-               "Waiting": null,
-               "Running": null,
-               "Terminated": null
-            },
-            "Ready": true,
-            "RestartCount": 0,
-            "Image": "redis",
-            "ImageID": "docker://sha256:1c2ac2024e4b6d621cea1458923bdbd1806f2c7c50c8a7292e0e6551b8d768e3",
-            "ContainerID": "docker://5c07497ca46686553f90572952214709ca5717286fc2460a81e814ce73a66b41"
-         }
-      ]
-   }
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2017-02-28T19:18:52Z",
+                "status": "True",
+                "type": "PodScheduled"
+            }
+        ],
+        "containerStatuses": [
+            {
+                "containerID": "docker://a82690934217d85872a901c877be5343f32bb8d39a8a0c7deb98bbebf5c74922",
+                "image": "redis",
+                "imageID": "docker://sha256:1a8a9ee54eb755a427e00484a64fa4edbe9c2abe59ca468a4e452b343a2b57c2",
+                "lastState": {},
+                "name": "redismaster",
+                "ready": true,
+                "restartCount": 0,
+                "state": {
+                    "running": {
+                        "startedAt": "2017-02-28T19:18:53Z"
+                    }
+                }
+            }
+        ],
+        "hostIP": "10.128.0.9",
+        "phase": "Running",
+        "podIP": "10.4.1.8",
+        "startTime": "2017-02-28T19:18:52Z"
+    }
 }
 `
 
 // pod3 has one single label: "role": "BusinessBackend"
 const pod3s = `{
-   "Name": "backend",
-   "GenerateName": "",
-   "Namespace": "demo",
-   "SelfLink": "/api/v1/namespaces/demo/pods/backend",
-   "UID": "3d86e2c0-c609-11e6-a4fd-06e1269025c9",
-   "ResourceVersion": "4964577",
-   "Generation": 0,
-   "CreationTimestamp": "2016-12-19T16:36:07Z",
-   "DeletionTimestamp": null,
-   "DeletionGracePeriodSeconds": null,
-   "Labels": {
-      "role": "BusinessBackend"
-   },
-   "Annotations": null,
-   "OwnerReferences": null,
-   "Finalizers": null,
-   "ClusterName": "",
-   "Spec": {
-      "Volumes": [
-         {
-            "Name": "default-token-79ah4",
-            "HostPath": null,
-            "EmptyDir": null,
-            "GCEPersistentDisk": null,
-            "AWSElasticBlockStore": null,
-            "GitRepo": null,
-            "Secret": {
-               "SecretName": "default-token-79ah4",
-               "Items": null,
-               "DefaultMode": 420
+    "apiVersion": "v1",
+    "kind": "Pod",
+    "metadata": {
+        "creationTimestamp": "2017-02-28T19:18:52Z",
+        "labels": {
+            "role": "BusinessBackend"
+        },
+        "name": "backend",
+        "namespace": "demo",
+        "resourceVersion": "543487",
+        "selfLink": "/api/v1/namespaces/demo/pods/backend",
+        "uid": "bdabca07-fdea-11e6-91a2-42010a8001b8"
+    },
+    "spec": {
+        "containers": [
+            {
+                "image": "nginx",
+                "imagePullPolicy": "Always",
+                "name": "nginx",
+                "ports": [
+                    {
+                        "containerPort": 6379,
+                        "protocol": "TCP"
+                    }
+                ],
+                "resources": {},
+                "terminationMessagePath": "/dev/termination-log",
+                "volumeMounts": [
+                    {
+                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                        "name": "default-token-kb5rn",
+                        "readOnly": true
+                    }
+                ]
+            }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "nodeName": "gke-test48-default-pool-1e87d955-30r9",
+        "restartPolicy": "Always",
+        "securityContext": {},
+        "serviceAccount": "default",
+        "serviceAccountName": "default",
+        "terminationGracePeriodSeconds": 30,
+        "volumes": [
+            {
+                "name": "default-token-kb5rn",
+                "secret": {
+                    "defaultMode": 420,
+                    "secretName": "default-token-kb5rn"
+                }
+            }
+        ]
+    },
+    "status": {
+        "conditions": [
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2017-02-28T19:18:52Z",
+                "status": "True",
+                "type": "Initialized"
             },
-            "NFS": null,
-            "ISCSI": null,
-            "Glusterfs": null,
-            "PersistentVolumeClaim": null,
-            "RBD": null,
-            "Quobyte": null,
-            "FlexVolume": null,
-            "Cinder": null,
-            "CephFS": null,
-            "Flocker": null,
-            "DownwardAPI": null,
-            "FC": null,
-            "AzureFile": null,
-            "ConfigMap": null,
-            "VsphereVolume": null,
-            "AzureDisk": null,
-            "PhotonPersistentDisk": null
-         }
-      ],
-      "InitContainers": null,
-      "Containers": [
-         {
-            "Name": "nginx",
-            "Image": "nginx",
-            "Command": null,
-            "Args": null,
-            "WorkingDir": "",
-            "Ports": [
-               {
-                  "Name": "",
-                  "HostPort": 0,
-                  "ContainerPort": 6379,
-                  "Protocol": "TCP",
-                  "HostIP": ""
-               }
-            ],
-            "Env": null,
-            "Resources": {
-               "Limits": null,
-               "Requests": null
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2017-02-28T19:18:54Z",
+                "status": "True",
+                "type": "Ready"
             },
-            "VolumeMounts": [
-               {
-                  "Name": "default-token-79ah4",
-                  "ReadOnly": true,
-                  "MountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
-                  "SubPath": ""
-               }
-            ],
-            "LivenessProbe": null,
-            "ReadinessProbe": null,
-            "Lifecycle": null,
-            "TerminationMessagePath": "/dev/termination-log",
-            "ImagePullPolicy": "Always",
-            "SecurityContext": null,
-            "Stdin": false,
-            "StdinOnce": false,
-            "TTY": false
-         }
-      ],
-      "RestartPolicy": "Always",
-      "TerminationGracePeriodSeconds": 30,
-      "ActiveDeadlineSeconds": null,
-      "DNSPolicy": "ClusterFirst",
-      "NodeSelector": null,
-      "ServiceAccountName": "default",
-      "NodeName": "ip-10-0-0-5.us-west-2.compute.internal",
-      "SecurityContext": {
-         "HostNetwork": false,
-         "HostPID": false,
-         "HostIPC": false,
-         "SELinuxOptions": null,
-         "RunAsUser": null,
-         "RunAsNonRoot": null,
-         "SupplementalGroups": null,
-         "FSGroup": null
-      },
-      "ImagePullSecrets": null,
-      "Hostname": "",
-      "Subdomain": "",
-      "Affinity": {
-         "NodeAffinity": null,
-         "PodAffinity": null,
-         "PodAntiAffinity": null
-      }
-   },
-   "Status": {
-      "Phase": "Running",
-      "Conditions": [
-         {
-            "Type": "Initialized",
-            "Status": "True",
-            "LastProbeTime": null,
-            "LastTransitionTime": "2016-12-19T16:36:07Z",
-            "Reason": "",
-            "Message": ""
-         },
-         {
-            "Type": "Ready",
-            "Status": "True",
-            "LastProbeTime": null,
-            "LastTransitionTime": "2016-12-19T16:36:09Z",
-            "Reason": "",
-            "Message": ""
-         },
-         {
-            "Type": "PodScheduled",
-            "Status": "True",
-            "LastProbeTime": null,
-            "LastTransitionTime": "2016-12-19T16:36:07Z",
-            "Reason": "",
-            "Message": ""
-         }
-      ],
-      "Message": "",
-      "Reason": "",
-      "HostIP": "10.0.0.5",
-      "PodIP": "10.2.69.69",
-      "StartTime": "2016-12-19T16:36:07Z",
-      "InitContainerStatuses": null,
-      "ContainerStatuses": [
-         {
-            "Name": "nginx",
-            "State": {
-               "Waiting": null,
-               "Running": {
-                  "StartedAt": "2016-12-19T16:36:09Z"
-               },
-               "Terminated": null
-            },
-            "LastTerminationState": {
-               "Waiting": null,
-               "Running": null,
-               "Terminated": null
-            },
-            "Ready": true,
-            "RestartCount": 0,
-            "Image": "nginx",
-            "ImageID": "docker://sha256:abf312888d132e461c61484457ee9fd0125d666672e22f972f3b8c9a0ed3f0a1",
-            "ContainerID": "docker://1eb816fda2428572ef2f12521ea45363a785466a0dfca3567ed2bf661a232d15"
-         }
-      ]
-   }
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2017-02-28T19:18:52Z",
+                "status": "True",
+                "type": "PodScheduled"
+            }
+        ],
+        "containerStatuses": [
+            {
+                "containerID": "docker://f66867c34c3f505b7296eb790fec350323d13f6f2a03f7030fa59b7171822a54",
+                "image": "nginx",
+                "imageID": "docker://sha256:db079554b4d2f7c65c4df3adae88cb72d051c8c3b8613eb44e86f60c945b1ca7",
+                "lastState": {},
+                "name": "nginx",
+                "ready": true,
+                "restartCount": 0,
+                "state": {
+                    "running": {
+                        "startedAt": "2017-02-28T19:18:54Z"
+                    }
+                }
+            }
+        ],
+        "hostIP": "10.128.0.9",
+        "phase": "Running",
+        "podIP": "10.4.1.9",
+        "startTime": "2017-02-28T19:18:52Z"
+    }
 }`
 
 // pod4 got multiple labels: "role": "WebFrontend", "job": "worker",
 const pod4s = `{
-   "Name": "backend",
-   "GenerateName": "",
-   "Namespace": "demo",
-   "SelfLink": "/api/v1/namespaces/demo/pods/backend",
-   "UID": "3d86e2c0-c609-11e6-a4fd-06e1269025c9",
-   "ResourceVersion": "4964577",
-   "Generation": 0,
-   "CreationTimestamp": "2016-12-19T16:36:07Z",
-   "DeletionTimestamp": null,
-   "DeletionGracePeriodSeconds": null,
-   "Labels": {
-      "role": "WebFrontend",
-			"job": "worker"
-   },
-   "Annotations": null,
-   "OwnerReferences": null,
-   "Finalizers": null,
-   "ClusterName": "",
-   "Spec": {
-      "Volumes": [
-         {
-            "Name": "default-token-79ah4",
-            "HostPath": null,
-            "EmptyDir": null,
-            "GCEPersistentDisk": null,
-            "AWSElasticBlockStore": null,
-            "GitRepo": null,
-            "Secret": {
-               "SecretName": "default-token-79ah4",
-               "Items": null,
-               "DefaultMode": 420
+    "apiVersion": "v1",
+    "kind": "Pod",
+    "metadata": {
+        "creationTimestamp": "2017-02-28T19:18:52Z",
+        "labels": {
+            "role": "WebFrontend",
+            "job": "worker"
+        },
+        "name": "frontend",
+        "namespace": "demo",
+        "resourceVersion": "543485",
+        "selfLink": "/api/v1/namespaces/demo/pods/frontend",
+        "uid": "bd9c01fb-fdea-11e6-91a2-42010a8001b8"
+    },
+    "spec": {
+        "containers": [
+            {
+                "image": "redis",
+                "imagePullPolicy": "Always",
+                "name": "redismaster",
+                "ports": [
+                    {
+                        "containerPort": 6379,
+                        "protocol": "TCP"
+                    }
+                ],
+                "resources": {
+                    "requests": {
+                        "cpu": "100m",
+                        "memory": "100Mi"
+                    }
+                },
+                "terminationMessagePath": "/dev/termination-log",
+                "volumeMounts": [
+                    {
+                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+                        "name": "default-token-kb5rn",
+                        "readOnly": true
+                    }
+                ]
+            }
+        ],
+        "dnsPolicy": "ClusterFirst",
+        "nodeName": "gke-test48-default-pool-1e87d955-mwh5",
+        "restartPolicy": "Always",
+        "securityContext": {},
+        "serviceAccount": "default",
+        "serviceAccountName": "default",
+        "terminationGracePeriodSeconds": 30,
+        "volumes": [
+            {
+                "name": "default-token-kb5rn",
+                "secret": {
+                    "defaultMode": 420,
+                    "secretName": "default-token-kb5rn"
+                }
+            }
+        ]
+    },
+    "status": {
+        "conditions": [
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2017-02-28T19:18:52Z",
+                "status": "True",
+                "type": "Initialized"
             },
-            "NFS": null,
-            "ISCSI": null,
-            "Glusterfs": null,
-            "PersistentVolumeClaim": null,
-            "RBD": null,
-            "Quobyte": null,
-            "FlexVolume": null,
-            "Cinder": null,
-            "CephFS": null,
-            "Flocker": null,
-            "DownwardAPI": null,
-            "FC": null,
-            "AzureFile": null,
-            "ConfigMap": null,
-            "VsphereVolume": null,
-            "AzureDisk": null,
-            "PhotonPersistentDisk": null
-         }
-      ],
-      "InitContainers": null,
-      "Containers": [
-         {
-            "Name": "nginx",
-            "Image": "nginx",
-            "Command": null,
-            "Args": null,
-            "WorkingDir": "",
-            "Ports": [
-               {
-                  "Name": "",
-                  "HostPort": 0,
-                  "ContainerPort": 6379,
-                  "Protocol": "TCP",
-                  "HostIP": ""
-               }
-            ],
-            "Env": null,
-            "Resources": {
-               "Limits": null,
-               "Requests": null
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2017-02-28T19:18:54Z",
+                "status": "True",
+                "type": "Ready"
             },
-            "VolumeMounts": [
-               {
-                  "Name": "default-token-79ah4",
-                  "ReadOnly": true,
-                  "MountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
-                  "SubPath": ""
-               }
-            ],
-            "LivenessProbe": null,
-            "ReadinessProbe": null,
-            "Lifecycle": null,
-            "TerminationMessagePath": "/dev/termination-log",
-            "ImagePullPolicy": "Always",
-            "SecurityContext": null,
-            "Stdin": false,
-            "StdinOnce": false,
-            "TTY": false
-         }
-      ],
-      "RestartPolicy": "Always",
-      "TerminationGracePeriodSeconds": 30,
-      "ActiveDeadlineSeconds": null,
-      "DNSPolicy": "ClusterFirst",
-      "NodeSelector": null,
-      "ServiceAccountName": "default",
-      "NodeName": "ip-10-0-0-5.us-west-2.compute.internal",
-      "SecurityContext": {
-         "HostNetwork": false,
-         "HostPID": false,
-         "HostIPC": false,
-         "SELinuxOptions": null,
-         "RunAsUser": null,
-         "RunAsNonRoot": null,
-         "SupplementalGroups": null,
-         "FSGroup": null
-      },
-      "ImagePullSecrets": null,
-      "Hostname": "",
-      "Subdomain": "",
-      "Affinity": {
-         "NodeAffinity": null,
-         "PodAffinity": null,
-         "PodAntiAffinity": null
-      }
-   },
-   "Status": {
-      "Phase": "Running",
-      "Conditions": [
-         {
-            "Type": "Initialized",
-            "Status": "True",
-            "LastProbeTime": null,
-            "LastTransitionTime": "2016-12-19T16:36:07Z",
-            "Reason": "",
-            "Message": ""
-         },
-         {
-            "Type": "Ready",
-            "Status": "True",
-            "LastProbeTime": null,
-            "LastTransitionTime": "2016-12-19T16:36:09Z",
-            "Reason": "",
-            "Message": ""
-         },
-         {
-            "Type": "PodScheduled",
-            "Status": "True",
-            "LastProbeTime": null,
-            "LastTransitionTime": "2016-12-19T16:36:07Z",
-            "Reason": "",
-            "Message": ""
-         }
-      ],
-      "Message": "",
-      "Reason": "",
-      "HostIP": "10.0.0.5",
-      "PodIP": "10.2.69.69",
-      "StartTime": "2016-12-19T16:36:07Z",
-      "InitContainerStatuses": null,
-      "ContainerStatuses": [
-         {
-            "Name": "nginx",
-            "State": {
-               "Waiting": null,
-               "Running": {
-                  "StartedAt": "2016-12-19T16:36:09Z"
-               },
-               "Terminated": null
-            },
-            "LastTerminationState": {
-               "Waiting": null,
-               "Running": null,
-               "Terminated": null
-            },
-            "Ready": true,
-            "RestartCount": 0,
-            "Image": "nginx",
-            "ImageID": "docker://sha256:abf312888d132e461c61484457ee9fd0125d666672e22f972f3b8c9a0ed3f0a1",
-            "ContainerID": "docker://1eb816fda2428572ef2f12521ea45363a785466a0dfca3567ed2bf661a232d15"
-         }
-      ]
-   }
+            {
+                "lastProbeTime": null,
+                "lastTransitionTime": "2017-02-28T19:18:52Z",
+                "status": "True",
+                "type": "PodScheduled"
+            }
+        ],
+        "containerStatuses": [
+            {
+                "containerID": "docker://48d8e102c086b5686abde297d983c3278af548a9551dc84facb8e77f5944bc75",
+                "image": "redis",
+                "imageID": "docker://sha256:1a8a9ee54eb755a427e00484a64fa4edbe9c2abe59ca468a4e452b343a2b57c2",
+                "lastState": {},
+                "name": "redismaster",
+                "ready": true,
+                "restartCount": 0,
+                "state": {
+                    "running": {
+                        "startedAt": "2017-02-28T19:18:53Z"
+                    }
+                }
+            }
+        ],
+        "hostIP": "10.128.0.8",
+        "phase": "Running",
+        "podIP": "10.4.2.7",
+        "startTime": "2017-02-28T19:18:52Z"
+    }
 }`
 
 // Policy matches label "role": "WebFrontend".
@@ -941,7 +634,10 @@ func TestSingleLabelMatch(t *testing.T) {
 
 	// Testing frontend
 	t.Log("Testing Pod frontend single policy match")
+	fmt.Printf("POD1: %+v \n\n\n", pod1)
+
 	result, _ := ListPoliciesPerPod(&pod1, &policyList)
+	fmt.Printf("RESULTS %+v", result)
 	if len(result.Items) != 1 {
 		t.Errorf("Expected 1 policy match for frontend, got %d", len(result.Items))
 	}

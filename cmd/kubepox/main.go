@@ -11,10 +11,12 @@ import (
 	"github.com/aporeto-inc/kubepox"
 
 	"github.com/docopt/docopt-go"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	api "k8s.io/client-go/pkg/api/v1"
+	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/kubernetes/pkg/api"
-	"k8s.io/kubernetes/pkg/apis/extensions"
+
 	client "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
 )
 
@@ -38,7 +40,7 @@ func main() {
 	--config=FILE path to the KubeConfig file.
 	`
 
-	arguments, _ := docopt.Parse(usage, nil, true, "Naval Fate 2.0", false)
+	arguments, _ := docopt.Parse(usage, nil, true, "KubePox", false)
 
 	// Get location of the Kubeconfig file. By default in your home.
 	var kubeconfig string
