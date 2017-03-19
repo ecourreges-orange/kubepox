@@ -1,8 +1,6 @@
 package kubepox
 
 import (
-	"fmt"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	api "k8s.io/client-go/pkg/api/v1"
@@ -16,11 +14,9 @@ func ListPoliciesPerPod(pod *api.Pod, allPolicies *extensions.NetworkPolicyList)
 		Items: []extensions.NetworkPolicy{},
 	}
 	podLabels := labels.Set(pod.GetLabels())
-	fmt.Printf("Labels: %+v \n\n\n", pod.GetLabels())
 
 	// Iterate over all policies and find the one that apply to the pod.
 	for _, policy := range allPolicies.Items {
-		fmt.Printf("Policy: %+v \n\n\n", policy)
 		selector, err := metav1.LabelSelectorAsSelector(&policy.Spec.PodSelector)
 		if err != nil {
 			return nil, err
