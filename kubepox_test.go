@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"testing"
 
-	api "k8s.io/client-go/pkg/api/v1"
-	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
+	api "k8s.io/api/core/v1"
+	extensions "k8s.io/api/extensions/v1beta1"
 )
 
 // pod1 has one single label: "role": "WebFrontend"
