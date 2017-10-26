@@ -2,16 +2,15 @@ package kubepox
 
 import (
 	api "k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
+	networking "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
 
 // ListPoliciesPerPod returns all the NetworkPolicies that are associated with a pod.
-func ListPoliciesPerPod(pod *api.Pod, allPolicies *extensions.NetworkPolicyList) (*extensions.NetworkPolicyList, error) {
-
-	matchedPolicies := extensions.NetworkPolicyList{
-		Items: []extensions.NetworkPolicy{},
+func ListPoliciesPerPod(pod *api.Pod, allPolicies *networking.NetworkPolicyList) (*networking.NetworkPolicyList, error) {
+	matchedPolicies := networking.NetworkPolicyList{
+		Items: []networking.NetworkPolicy{},
 	}
 	podLabels := labels.Set(pod.GetLabels())
 
@@ -30,7 +29,7 @@ func ListPoliciesPerPod(pod *api.Pod, allPolicies *extensions.NetworkPolicyList)
 }
 
 // ListIngressRulesPerPod Generate a set of IngressRules that apply to the pod given in parameter.
-func ListIngressRulesPerPod(pod *api.Pod, allPolicies *extensions.NetworkPolicyList) (*[]extensions.NetworkPolicyIngressRule, error) {
+func ListIngressRulesPerPod(pod *api.Pod, allPolicies *networking.NetworkPolicyList) (*[]networking.NetworkPolicyIngressRule, error) {
 	matchedPolicies, err := ListPoliciesPerPod(pod, allPolicies)
 	if err != nil {
 		return nil, err
@@ -38,8 +37,17 @@ func ListIngressRulesPerPod(pod *api.Pod, allPolicies *extensions.NetworkPolicyL
 	return ingressSetGenerator(matchedPolicies)
 }
 
+// ListEgressRulesPerPod Generate a set of EgressRules that apply to the pod given in parameter.
+func ListEgressRulesPerPod(pod *api.Pod, allPolicies *networking.NetworkPolicyList) (*[]networking.NetworkPolicyEgressRule, error) {
+	matchedPolicies, err := ListPoliciesPerPod(pod, allPolicies)
+	if err != nil {
+		return nil, err
+	}
+	return egressSetGenerator(matchedPolicies)
+}
+
 // ListPodsPerPolicy returns all the Pods that are affected by a policy out of the list.
-func ListPodsPerPolicy(np *extensions.NetworkPolicy, allPods *api.PodList) (*api.PodList, error) {
+func ListPodsPerPolicy(np *networking.NetworkPolicy, allPods *api.PodList) (*api.PodList, error) {
 
 	selector, err := metav1.LabelSelectorAsSelector(&np.Spec.PodSelector)
 	if err != nil {
@@ -61,12 +69,72 @@ func ListPodsPerPolicy(np *extensions.NetworkPolicy, allPods *api.PodList) (*api
 }
 
 // generate a new table of IngressRules which are the Logical OR of all the existing IngressRules from all the policies given in parameter
-func ingressSetGenerator(policies *extensions.NetworkPolicyList) (*[]extensions.NetworkPolicyIngressRule, error) {
-	ingressRules := []extensions.NetworkPolicyIngressRule{}
+func ingressSetGenerator(policies *networking.NetworkPolicyList) (*[]networking.NetworkPolicyIngressRule, error) {
+	ingressRules := []networking.NetworkPolicyIngressRule{}
+
 	for _, policy := range policies.Items {
-		for _, singleRule := range policy.Spec.Ingress {
-			ingressRules = append(ingressRules, singleRule)
+		if isPolicyApplicableToIngress(&policy) {
+			for _, singleRule := range policy.Spec.Ingress {
+				ingressRules = append(ingressRules, singleRule)
+			}
 		}
 	}
 	return &ingressRules, nil
+}
+
+// generate a new table of IngressRules which are the Logical OR of all the existing IngressRules from all the policies given in parameter
+func egressSetGenerator(policies *networking.NetworkPolicyList) (*[]networking.NetworkPolicyEgressRule, error) {
+	egressRules := []networking.NetworkPolicyEgressRule{}
+
+	for _, policy := range policies.Items {
+		if isPolicyApplicableToEgress(&policy) {
+			for _, singleRule := range policy.Spec.Egress {
+				egressRules = append(egressRules, singleRule)
+			}
+		}
+	}
+	return &egressRules, nil
+}
+
+// isPolicyApplicableToIngress returns true if the policy is applicable for Ingress traffic
+func isPolicyApplicableToIngress(policy *networking.NetworkPolicy) bool {
+
+	// Logic: Policy applies to ingress only IF:
+	// - flag is not set
+	// - flag is set with an entry to type Ingress (even if no section Egress exists)
+
+	if policy.Spec.PolicyTypes == nil {
+		return true
+	}
+
+	for _, ptype := range policy.Spec.PolicyTypes {
+		if ptype == networking.PolicyTypeIngress {
+			return true
+		}
+	}
+
+	return false
+}
+
+// isPolicyApplicableToEgress returns true if the policy is applicable for Egress traffic
+func isPolicyApplicableToEgress(policy *networking.NetworkPolicy) bool {
+
+	// Logic: Policy applies to egress only IF:
+	// - flag is not set but egress section is present
+	// - flag is set with an entry to type Egress (even if no section Egress exists)
+
+	if policy.Spec.PolicyTypes == nil {
+		if policy.Spec.Egress != nil {
+			return true
+		}
+		return false
+	}
+
+	for _, ptype := range policy.Spec.PolicyTypes {
+		if ptype == networking.PolicyTypeEgress {
+			return true
+		}
+	}
+
+	return false
 }

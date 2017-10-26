@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	api "k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
+	networking "k8s.io/api/networking/v1"
 )
 
 // pod1 has one single label: "role": "WebFrontend"
@@ -429,7 +429,7 @@ const policy1s = `{
    "metadata": {
       "name": "frontend-policy",
       "namespace": "default",
-      "selfLink": "/apis/extensions/v1beta1/namespaces/default/networkpolicies/frontend-policy",
+      "selfLink": "/apis/networking/v1/namespaces/default/networkpolicies/frontend-policy",
       "uid": "22c9ad41-89b1-11e6-a046-0800277021d9",
       "resourceVersion": "2482",
       "generation": 1,
@@ -479,7 +479,7 @@ const policy2s = `{
    "metadata": {
       "name": "backend-policy",
       "namespace": "default",
-      "selfLink": "/apis/extensions/v1beta1/namespaces/default/networkpolicies/backend-policy",
+      "selfLink": "/apis/networking/v1/namespaces/default/networkpolicies/backend-policy",
       "uid": "22cde507-89b1-11e6-a046-0800277021d9",
       "resourceVersion": "2483",
       "generation": 1,
@@ -526,7 +526,7 @@ const policy3s = `{
    "metadata": {
       "name": "database-policy",
       "namespace": "default",
-      "selfLink": "/apis/extensions/v1beta1/namespaces/default/networkpolicies/database-policy",
+      "selfLink": "/apis/networking/v1/namespaces/default/networkpolicies/database-policy",
       "uid": "22d227d2-89b1-11e6-a046-0800277021d9",
       "resourceVersion": "2484",
       "generation": 1,
@@ -566,7 +566,7 @@ const policy4s = `{
    "metadata": {
       "name": "database-policy",
       "namespace": "default",
-      "selfLink": "/apis/extensions/v1beta1/namespaces/default/networkpolicies/database-policy",
+      "selfLink": "/apis/networking/v1/namespaces/default/networkpolicies/database-policy",
       "uid": "22d227d2-89b1-11e6-a046-0800277021d9",
       "resourceVersion": "2484",
       "generation": 1,
@@ -606,9 +606,9 @@ func TestSingleLabelMatch(t *testing.T) {
 	pod2 := api.Pod{}
 	pod3 := api.Pod{}
 
-	policy1 := extensions.NetworkPolicy{}
-	policy2 := extensions.NetworkPolicy{}
-	policy3 := extensions.NetworkPolicy{}
+	policy1 := networking.NetworkPolicy{}
+	policy2 := networking.NetworkPolicy{}
+	policy3 := networking.NetworkPolicy{}
 
 	json.Unmarshal([]byte(pod1s), &pod1)
 	json.Unmarshal([]byte(pod2s), &pod2)
@@ -618,8 +618,8 @@ func TestSingleLabelMatch(t *testing.T) {
 	json.Unmarshal([]byte(policy2s), &policy2)
 	json.Unmarshal([]byte(policy3s), &policy3)
 
-	policyList := extensions.NetworkPolicyList{
-		Items: []extensions.NetworkPolicy{policy1,
+	policyList := networking.NetworkPolicyList{
+		Items: []networking.NetworkPolicy{policy1,
 			policy2,
 			policy3,
 		},
@@ -703,10 +703,10 @@ func TestSingleLabelMatch(t *testing.T) {
 func TestMultipleLabelMatch(t *testing.T) {
 	pod4 := api.Pod{}
 
-	policy1 := extensions.NetworkPolicy{}
-	policy2 := extensions.NetworkPolicy{}
-	policy3 := extensions.NetworkPolicy{}
-	policy4 := extensions.NetworkPolicy{}
+	policy1 := networking.NetworkPolicy{}
+	policy2 := networking.NetworkPolicy{}
+	policy3 := networking.NetworkPolicy{}
+	policy4 := networking.NetworkPolicy{}
 
 	json.Unmarshal([]byte(pod4s), &pod4)
 
@@ -715,15 +715,15 @@ func TestMultipleLabelMatch(t *testing.T) {
 	json.Unmarshal([]byte(policy3s), &policy3)
 	json.Unmarshal([]byte(policy4s), &policy4)
 
-	policyList := extensions.NetworkPolicyList{
-		Items: []extensions.NetworkPolicy{policy1,
+	policyList := networking.NetworkPolicyList{
+		Items: []networking.NetworkPolicy{policy1,
 			policy2,
 			policy3,
 			policy4,
 		},
 	}
 
-	expectedPolicies := extensions.NetworkPolicyList{Items: []extensions.NetworkPolicy{policy1, policy4}}
+	expectedPolicies := networking.NetworkPolicyList{Items: []networking.NetworkPolicy{policy1, policy4}}
 	expectedRules := append(policy1.Spec.Ingress, policy4.Spec.Ingress...)
 	// Testing pod4
 	t.Log("Testing Pod 4 Multible policy match")

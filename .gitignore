@@ -1,0 +1,5 @@
+.vscode/
+cmd/kubepox/kubepox
+glide.lock
+vendor/
+

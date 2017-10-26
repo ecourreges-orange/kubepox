@@ -13,11 +13,12 @@ import (
 	"github.com/docopt/docopt-go"
 
 	api "k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
+	networking "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
-	client "k8s.io/kubernetes/pkg/client/clientset_generated/internalclientset"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 )
 
 //Todo: Make it clean and a real executable with flags.
@@ -64,7 +65,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	myClient, err := client.NewForConfig(config)
+	myClient, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		fmt.Printf("Error creating REST Kube Client: %v\n", err)
 		os.Exit(1)
@@ -73,7 +74,7 @@ func main() {
 	// Display all policies. Similar to kubectl describe policies in json
 	if arguments["get-all"].(bool) && arguments["policies"].(bool) {
 
-		policies, err := myClient.Extensions().NetworkPolicies(namespace).List(metav1.ListOptions{})
+		policies, err := myClient.Networking().NetworkPolicies(namespace).List(metav1.ListOptions{})
 		if err != nil {
 			fmt.Printf("Couldn't get Network Policy: %v\n", err)
 			os.Exit(1)
@@ -84,7 +85,7 @@ func main() {
 	// Display all pods. Similar to kubectl describe pods in json
 	if arguments["get-all"].(bool) && arguments["pods"].(bool) {
 
-		pods, err := myClient.Pods(namespace).List(metav1.ListOptions{})
+		pods, err := myClient.CoreV1().Pods(namespace).List(metav1.ListOptions{})
 		if err != nil {
 			fmt.Printf("Couldn't get all the pods %v\n", err)
 			os.Exit(1)
@@ -96,12 +97,12 @@ func main() {
 	// Get all the pods that get affected by the policy
 	if arguments["get-pods"].(bool) {
 		// Get the Policy in argument
-		np, err := myClient.Extensions().NetworkPolicies(namespace).Get(arguments["<policy>"].(string), metav1.GetOptions{})
+		np, err := myClient.Networking().NetworkPolicies(namespace).Get(arguments["<policy>"].(string), metav1.GetOptions{})
 		if err != nil {
 			fmt.Printf("Couldn't get Network Policy: %v\n", err)
 			os.Exit(1)
 		}
-		allPods, err := myClient.Pods(namespace).List(metav1.ListOptions{})
+		allPods, err := myClient.CoreV1().Pods(namespace).List(metav1.ListOptions{})
 		if err != nil {
 			fmt.Printf("Couldn't get all the pods %v\n", err)
 			os.Exit(1)
@@ -119,13 +120,13 @@ func main() {
 	// Get all the policies that get applied to a Pod.
 	if arguments["get-policies"].(bool) {
 
-		pod, err := myClient.Pods(namespace).Get(arguments["<pod>"].(string), metav1.GetOptions{})
+		pod, err := myClient.CoreV1().Pods(namespace).Get(arguments["<pod>"].(string), metav1.GetOptions{})
 		if err != nil {
 			fmt.Printf("Couldn't get target pod %v\n", err)
 			os.Exit(1)
 		}
 
-		allPolicies, err := myClient.Extensions().NetworkPolicies(namespace).List(metav1.ListOptions{})
+		allPolicies, err := myClient.Networking().NetworkPolicies(namespace).List(metav1.ListOptions{})
 		if err != nil {
 			fmt.Printf("Couldn't get all Network Policies: %v\n", err)
 		}
@@ -143,13 +144,13 @@ func main() {
 	// Get all the IngressRules that get applied to a Pod.
 	if arguments["get-rules"].(bool) {
 
-		pod, err := myClient.Pods(namespace).Get(arguments["<pod>"].(string), metav1.GetOptions{})
+		pod, err := myClient.CoreV1().Pods(namespace).Get(arguments["<pod>"].(string), metav1.GetOptions{})
 		if err != nil {
 			fmt.Printf("Couldn't get target pod %v\n", err)
 			os.Exit(1)
 		}
 
-		allPolicies, err := myClient.Extensions().NetworkPolicies(namespace).List(metav1.ListOptions{})
+		allPolicies, err := myClient.Networking().NetworkPolicies(namespace).List(metav1.ListOptions{})
 		if err != nil {
 			fmt.Printf("Couldn't get all Network Policies: %v\n", err)
 			os.Exit(1)
@@ -171,7 +172,7 @@ func main() {
 
 }
 
-func renderPolicies(policies *extensions.NetworkPolicyList) {
+func renderPolicies(policies *networking.NetworkPolicyList) {
 	for count, policy := range policies.Items {
 		fmt.Printf("POLICY %d\n", count+1)
 		pp, _ := json.MarshalIndent(&policy, "", "   ")
@@ -187,7 +188,7 @@ func renderPods(pods *api.PodList) {
 	}
 }
 
-func renderIngressRules(ingressRules *[]extensions.NetworkPolicyIngressRule) {
+func renderIngressRules(ingressRules *[]networking.NetworkPolicyIngressRule) {
 	for count, rule := range *ingressRules {
 		fmt.Printf("RULE %d\n", count)
 		pp, _ := json.MarshalIndent(&rule, "", "   ")
@@ -202,7 +203,7 @@ func max(a, b int) int {
 	return b
 }
 
-func portsRepresentation(rule *extensions.NetworkPolicyIngressRule) string {
+func portsRepresentation(rule *networking.NetworkPolicyIngressRule) string {
 	if len(rule.Ports) == 0 {
 		return "ALL"
 	}
@@ -219,7 +220,7 @@ func portsRepresentation(rule *extensions.NetworkPolicyIngressRule) string {
 	return entryString
 }
 
-func entryFromRule(rule *extensions.NetworkPolicyIngressRule, ruleCount, entryCount int) (string, error) {
+func entryFromRule(rule *networking.NetworkPolicyIngressRule, ruleCount, entryCount int) (string, error) {
 	entryString := ""
 	entryString += strconv.Itoa(ruleCount+1) + "\t" + strconv.Itoa(entryCount+1) + "\t"
 
@@ -234,7 +235,7 @@ func entryFromRule(rule *extensions.NetworkPolicyIngressRule, ruleCount, entryCo
 	return entryString, nil
 }
 
-func renderIngressRulesHuman(ingressRules *[]extensions.NetworkPolicyIngressRule) {
+func renderIngressRulesHuman(ingressRules *[]networking.NetworkPolicyIngressRule) {
 	w := tabwriter.NewWriter(os.Stdout, 10, 0, 3, '-', tabwriter.AlignRight|tabwriter.Debug)
 	fmt.Fprintln(w, "RULE\tSELECTOR\tFROM PODS\tALLOWED TRAFFIC\t")
 	for ruleCount, rule := range *ingressRules {
