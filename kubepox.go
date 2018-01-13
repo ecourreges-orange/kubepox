@@ -73,7 +73,7 @@ func ingressSetGenerator(policies *networking.NetworkPolicyList) (*[]networking.
 	ingressRules := []networking.NetworkPolicyIngressRule{}
 
 	for _, policy := range policies.Items {
-		if isPolicyApplicableToIngress(&policy) {
+		if IsPolicyApplicableToIngress(&policy) {
 			for _, singleRule := range policy.Spec.Ingress {
 				ingressRules = append(ingressRules, singleRule)
 			}
@@ -87,7 +87,7 @@ func egressSetGenerator(policies *networking.NetworkPolicyList) (*[]networking.N
 	egressRules := []networking.NetworkPolicyEgressRule{}
 
 	for _, policy := range policies.Items {
-		if isPolicyApplicableToEgress(&policy) {
+		if IsPolicyApplicableToEgress(&policy) {
 			for _, singleRule := range policy.Spec.Egress {
 				egressRules = append(egressRules, singleRule)
 			}
@@ -96,8 +96,8 @@ func egressSetGenerator(policies *networking.NetworkPolicyList) (*[]networking.N
 	return &egressRules, nil
 }
 
-// isPolicyApplicableToIngress returns true if the policy is applicable for Ingress traffic
-func isPolicyApplicableToIngress(policy *networking.NetworkPolicy) bool {
+// IsPolicyApplicableToIngress returns true if the policy is applicable for Ingress traffic
+func IsPolicyApplicableToIngress(policy *networking.NetworkPolicy) bool {
 
 	// Logic: Policy applies to ingress only IF:
 	// - flag is not set
@@ -116,8 +116,8 @@ func isPolicyApplicableToIngress(policy *networking.NetworkPolicy) bool {
 	return false
 }
 
-// isPolicyApplicableToEgress returns true if the policy is applicable for Egress traffic
-func isPolicyApplicableToEgress(policy *networking.NetworkPolicy) bool {
+// IsPolicyApplicableToEgress returns true if the policy is applicable for Egress traffic
+func IsPolicyApplicableToEgress(policy *networking.NetworkPolicy) bool {
 
 	// Logic: Policy applies to egress only IF:
 	// - flag is not set but egress section is present
