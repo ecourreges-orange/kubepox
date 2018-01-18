@@ -16,6 +16,11 @@ func ListPoliciesPerPod(pod *api.Pod, allPolicies *networking.NetworkPolicyList)
 
 	// Iterate over all policies and find the one that apply to the pod.
 	for _, policy := range allPolicies.Items {
+		// Validation of namespace
+		if policy.Namespace != pod.Namespace {
+			continue
+		}
+
 		selector, err := metav1.LabelSelectorAsSelector(&policy.Spec.PodSelector)
 		if err != nil {
 			return nil, err
@@ -29,6 +34,7 @@ func ListPoliciesPerPod(pod *api.Pod, allPolicies *networking.NetworkPolicyList)
 }
 
 // ListIngressRulesPerPod Generate a set of IngressRules that apply to the pod given in parameter.
+// returns nil if the policies in parameters are not applicable to Ingress
 func ListIngressRulesPerPod(pod *api.Pod, allPolicies *networking.NetworkPolicyList) (*[]networking.NetworkPolicyIngressRule, error) {
 	matchedPolicies, err := ListPoliciesPerPod(pod, allPolicies)
 	if err != nil {
@@ -38,6 +44,7 @@ func ListIngressRulesPerPod(pod *api.Pod, allPolicies *networking.NetworkPolicyL
 }
 
 // ListEgressRulesPerPod Generate a set of EgressRules that apply to the pod given in parameter.
+// returns nil if the policies in parameters are not applicable to Egress
 func ListEgressRulesPerPod(pod *api.Pod, allPolicies *networking.NetworkPolicyList) (*[]networking.NetworkPolicyEgressRule, error) {
 	matchedPolicies, err := ListPoliciesPerPod(pod, allPolicies)
 	if err != nil {
@@ -69,31 +76,43 @@ func ListPodsPerPolicy(np *networking.NetworkPolicy, allPods *api.PodList) (*api
 }
 
 // generate a new table of IngressRules which are the Logical OR of all the existing IngressRules from all the policies given in parameter
+// returns nil if the policies in parameters are not applicable to Ingress
 func ingressSetGenerator(policies *networking.NetworkPolicyList) (*[]networking.NetworkPolicyIngressRule, error) {
 	ingressRules := []networking.NetworkPolicyIngressRule{}
+	applicable := false
 
 	for _, policy := range policies.Items {
 		if IsPolicyApplicableToIngress(&policy) {
+			applicable = true
 			for _, singleRule := range policy.Spec.Ingress {
 				ingressRules = append(ingressRules, singleRule)
 			}
 		}
 	}
-	return &ingressRules, nil
+	if applicable {
+		return &ingressRules, nil
+	}
+	return nil, nil
 }
 
 // generate a new table of IngressRules which are the Logical OR of all the existing IngressRules from all the policies given in parameter
+// returns nil if the policies in parameters are not applicable to Egress
 func egressSetGenerator(policies *networking.NetworkPolicyList) (*[]networking.NetworkPolicyEgressRule, error) {
 	egressRules := []networking.NetworkPolicyEgressRule{}
+	applicable := false
 
 	for _, policy := range policies.Items {
 		if IsPolicyApplicableToEgress(&policy) {
 			for _, singleRule := range policy.Spec.Egress {
+				applicable = true
 				egressRules = append(egressRules, singleRule)
 			}
 		}
 	}
-	return &egressRules, nil
+	if applicable {
+		return &egressRules, nil
+	}
+	return nil, nil
 }
 
 // IsPolicyApplicableToIngress returns true if the policy is applicable for Ingress traffic
@@ -137,4 +156,59 @@ func IsPolicyApplicableToEgress(policy *networking.NetworkPolicy) bool {
 	}
 
 	return false
+}
+
+// IsPodSelected returns the selection status of the pod given as parameter over all the NetworkPolicies given as parameter.
+// return status for ingress and egress
+func IsPodSelected(pod *api.Pod, policies *networking.NetworkPolicyList) (bool, bool, error) {
+	isApplicableToIngress := false
+	isApplicableToEgress := false
+
+	applicablePolicies, err := ListPoliciesPerPod(pod, policies)
+	if err != nil {
+		return false, false, nil
+	}
+	for _, policy := range applicablePolicies.Items {
+		if IsPolicyApplicableToIngress(&policy) {
+			isApplicableToIngress = true
+		}
+		if IsPolicyApplicableToEgress(&policy) {
+			isApplicableToEgress = true
+		}
+		if isApplicableToIngress && isApplicableToEgress {
+			return true, true, nil
+		}
+	}
+
+	return isApplicableToIngress, isApplicableToEgress, nil
+}
+
+// IsPodSelectedIngress returns the selection status of the pod given as parameter over all the NetworkPolicies given as parameter.
+// return status for ingress
+func IsPodSelectedIngress(pod *api.Pod, policies *networking.NetworkPolicyList) (bool, error) {
+	applicablePolicies, err := ListPoliciesPerPod(pod, policies)
+	if err != nil {
+		return false, nil
+	}
+	for _, policy := range applicablePolicies.Items {
+		if IsPolicyApplicableToIngress(&policy) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// IsPodSelectedEgress returns the selection status of the pod given as parameter over all the NetworkPolicies given as parameter.
+// return status for egress
+func IsPodSelectedEgress(pod *api.Pod, policies *networking.NetworkPolicyList) (bool, error) {
+	applicablePolicies, err := ListPoliciesPerPod(pod, policies)
+	if err != nil {
+		return false, nil
+	}
+	for _, policy := range applicablePolicies.Items {
+		if IsPolicyApplicableToEgress(&policy) {
+			return true, nil
+		}
+	}
+	return false, nil
 }
