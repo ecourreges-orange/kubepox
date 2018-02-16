@@ -1,9 +1,0 @@
-package: github.com/aporeto-inc/kubepox
-import:
-- package: github.com/docopt/docopt-go
-- package: k8s.io/apimachinery
-  subpackages:
-  - pkg/apis/meta/v1
-  - pkg/labels
-- package: k8s.io/client-go
-- package: k8s.io/api
