@@ -126,18 +126,6 @@ var pod2 = api.Pod{
 	},
 }
 
-func buildNetworkPolicyList(nps ...networking.NetworkPolicy) networking.NetworkPolicyList {
-	return networking.NetworkPolicyList{
-		Items: nps,
-	}
-}
-
-func buildPodList(pods ...api.Pod) api.PodList {
-	return api.PodList{
-		Items: pods,
-	}
-}
-
 func TestListPoliciesPerPod(t *testing.T) {
 
 	type testStruct struct {
@@ -201,6 +189,18 @@ func TestListPoliciesPerPod(t *testing.T) {
 		}
 	}
 
+}
+
+func buildNetworkPolicyList(nps ...networking.NetworkPolicy) networking.NetworkPolicyList {
+	return networking.NetworkPolicyList{
+		Items: nps,
+	}
+}
+
+func buildPodList(pods ...api.Pod) api.PodList {
+	return api.PodList{
+		Items: pods,
+	}
 }
 
 func testNPListEquality(result, expected networking.NetworkPolicyList) error {
