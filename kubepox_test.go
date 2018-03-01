@@ -9,10 +9,100 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// np2 is egress only for target pods with role=frontend
+var defaultdenyingress = networking.NetworkPolicy{
+	ObjectMeta: metav1.ObjectMeta{
+		Name: "defaultdenyingress",
+	},
+	Spec: networking.NetworkPolicySpec{
+		PolicyTypes: []networking.PolicyType{
+			networking.PolicyTypeIngress,
+		},
+	},
+}
+
+// np2 is egress only for target pods with role=frontend
+var defaultallowingress = networking.NetworkPolicy{
+	ObjectMeta: metav1.ObjectMeta{
+		Name: "defaultallowingress",
+	},
+	Spec: networking.NetworkPolicySpec{
+		Ingress: []networking.NetworkPolicyIngressRule{
+			networking.NetworkPolicyIngressRule{},
+		},
+	},
+}
+
+// np2 is egress only for target pods with role=frontend
+var defaultdenyegress = networking.NetworkPolicy{
+	ObjectMeta: metav1.ObjectMeta{
+		Name: "defaultdenyegress",
+	},
+	Spec: networking.NetworkPolicySpec{
+		PolicyTypes: []networking.PolicyType{
+			networking.PolicyTypeEgress,
+		},
+	},
+}
+
+// np2 is egress only for target pods with role=frontend
+var defaultallowegress = networking.NetworkPolicy{
+	ObjectMeta: metav1.ObjectMeta{
+		Name: "defaultallowegress",
+	},
+	Spec: networking.NetworkPolicySpec{
+		PolicyTypes: []networking.PolicyType{
+			networking.PolicyTypeEgress,
+		},
+		Egress: []networking.NetworkPolicyEgressRule{},
+	},
+}
+
+// np2 is egress only for target pods with role=frontend
+var defaultdenyall = networking.NetworkPolicy{
+	ObjectMeta: metav1.ObjectMeta{
+		Name: "defaultdenyall",
+	},
+	Spec: networking.NetworkPolicySpec{
+		PolicyTypes: []networking.PolicyType{
+			networking.PolicyTypeEgress,
+			networking.PolicyTypeIngress,
+		},
+	},
+}
+
 // np1 is ingress only for target pods with role=frontend
 var np1 = networking.NetworkPolicy{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "np1",
+	},
+	Spec: networking.NetworkPolicySpec{
+		PodSelector: metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				"role": "frontend",
+			},
+		},
+		Ingress: []networking.NetworkPolicyIngressRule{
+			networking.NetworkPolicyIngressRule{
+				From: []networking.NetworkPolicyPeer{
+					networking.NetworkPolicyPeer{
+						PodSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"role": "backend",
+							},
+						},
+					},
+				},
+			},
+		},
+	},
+}
+
+// np1 is ingress only for target pods with role=frontend
+var np1namespacex = networking.NetworkPolicy{
+	ObjectMeta: metav1.ObjectMeta{
+		Name:      "np1",
+		Namespace: "x",
 	},
 	Spec: networking.NetworkPolicySpec{
 		PodSelector: metav1.LabelSelector{
@@ -116,6 +206,17 @@ var pod1 = api.Pod{
 	},
 }
 
+// pod1 is a target pod with role=frontend
+var pod1namespacex = api.Pod{
+	ObjectMeta: metav1.ObjectMeta{
+		Name:      "pod1",
+		Namespace: "x",
+		Labels: map[string]string{
+			"role": "frontend",
+		},
+	},
+}
+
 // pod2 is a target pod with role=backend
 var pod2 = api.Pod{
 	ObjectMeta: metav1.ObjectMeta{
@@ -139,6 +240,16 @@ func TestListPoliciesPerPod(t *testing.T) {
 			Policies: buildNetworkPolicyList(),
 			Pod:      pod1,
 			Result:   buildNetworkPolicyList(),
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultdenyall),
+			Pod:      pod1,
+			Result:   buildNetworkPolicyList(defaultdenyall),
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultdenyingress, defaultallowingress, defaultdenyegress, defaultdenyegress, defaultdenyall),
+			Pod:      pod2,
+			Result:   buildNetworkPolicyList(defaultdenyingress, defaultallowingress, defaultdenyegress, defaultdenyegress, defaultdenyall),
 		},
 		testStruct{
 			Policies: buildNetworkPolicyList(np1),
@@ -175,6 +286,23 @@ func TestListPoliciesPerPod(t *testing.T) {
 			Pod:      pod2,
 			Result:   buildNetworkPolicyList(),
 		},
+
+		// different namespace tests
+		testStruct{
+			Policies: buildNetworkPolicyList(np1, np2, np3),
+			Pod:      pod1namespacex,
+			Result:   buildNetworkPolicyList(),
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(np1namespacex),
+			Pod:      pod1,
+			Result:   buildNetworkPolicyList(),
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(np1namespacex),
+			Pod:      pod1namespacex,
+			Result:   buildNetworkPolicyList(np1namespacex),
+		},
 	}
 
 	for i, test := range tests {
@@ -191,6 +319,43 @@ func TestListPoliciesPerPod(t *testing.T) {
 
 }
 
+func TestListIngressRulesPerPod(t *testing.T) {
+
+	type testStruct struct {
+		Policies networking.NetworkPolicyList
+		Pod      api.Pod
+		Result   []networking.NetworkPolicyIngressRule
+	}
+
+	tests := []testStruct{
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultdenyingress),
+			Pod:      pod1,
+			Result:   []networking.NetworkPolicyIngressRule{},
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultallowingress),
+			Pod:      pod1,
+			Result: []networking.NetworkPolicyIngressRule{
+				networking.NetworkPolicyIngressRule{},
+			},
+		},
+	}
+
+	for i, test := range tests {
+		t.Log("Testing ListPolicyPerPod Ingress ", i)
+		result, err := ListIngressRulesPerPod(&test.Pod, &test.Policies)
+		if err != nil {
+			t.Errorf("Error on ListPolicyPerPod for test %d", i)
+		}
+
+		if err := testNPIngressRuleListEquality(*result, test.Result); err != nil {
+			t.Errorf("Error on  ListPolicyPerPod test %ds : %s ", i, err)
+		}
+	}
+
+}
+
 func buildNetworkPolicyList(nps ...networking.NetworkPolicy) networking.NetworkPolicyList {
 	return networking.NetworkPolicyList{
 		Items: nps,
@@ -201,6 +366,29 @@ func buildPodList(pods ...api.Pod) api.PodList {
 	return api.PodList{
 		Items: pods,
 	}
+}
+
+func testNPIngressRuleListEquality(resultList, expectedList []networking.NetworkPolicyIngressRule) error {
+	//fmt.Printf("RESULT: %+v, \n EXPECTED: %+v \n", resultList, expectedList)
+	if len(resultList) != len(expectedList) {
+		return fmt.Errorf("Got %d element, expected %d element", len(resultList), len(expectedList))
+	}
+
+	for i, expect := range expectedList {
+		result := resultList[i]
+		data1, _ := result.Marshal()
+		data2, _ := expect.Marshal()
+		fmt.Println(string(data1))
+		if string(data1) == string(data2) {
+			fmt.Println("goof")
+		}
+	}
+
+	return nil
+}
+
+func testNPEgressRuleListEquality(result, expected []networking.NetworkPolicyEgressRule) error {
+	return nil
 }
 
 func testNPListEquality(result, expected networking.NetworkPolicyList) error {
