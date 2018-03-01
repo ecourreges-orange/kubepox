@@ -306,7 +306,7 @@ func TestListPoliciesPerPod(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		t.Log("Testing ListPolicyPerPod Ingress ", i)
+		t.Log("Testing ListPolicyPerPod ", i)
 		result, err := ListPoliciesPerPod(&test.Pod, &test.Policies)
 		if err != nil {
 			t.Errorf("Error on ListPolicyPerPod for test %d", i)
@@ -340,6 +340,75 @@ func TestListIngressRulesPerPod(t *testing.T) {
 				networking.NetworkPolicyIngressRule{},
 			},
 		},
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultdenyingress, np1),
+			Pod:      pod1,
+			Result: []networking.NetworkPolicyIngressRule{
+				np1.Spec.Ingress[0],
+			},
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultallowingress, np1),
+			Pod:      pod1,
+			Result: []networking.NetworkPolicyIngressRule{
+				networking.NetworkPolicyIngressRule{},
+				np1.Spec.Ingress[0],
+			},
+		},
+
+		// One of the policy not apploed for this specific pod.
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultdenyingress, np1),
+			Pod:      pod2,
+			Result:   []networking.NetworkPolicyIngressRule{},
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultallowingress, np1),
+			Pod:      pod2,
+			Result: []networking.NetworkPolicyIngressRule{
+				networking.NetworkPolicyIngressRule{},
+			},
+		},
+
+		// Policies not applicatble to Ingress
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultdenyegress),
+			Pod:      pod1,
+			Result:   nil,
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultallowegress),
+			Pod:      pod1,
+			Result:   nil,
+		},
+
+		// Mix of applicable Ingress and non-applicable Egress Policies
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultdenyegress, np1),
+			Pod:      pod1,
+			Result: []networking.NetworkPolicyIngressRule{
+				np1.Spec.Ingress[0],
+			},
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultallowegress, np1),
+			Pod:      pod1,
+			Result: []networking.NetworkPolicyIngressRule{
+				np1.Spec.Ingress[0],
+			},
+		},
+
+		// Mix of non-applicable Ingress and non-applicable Egress Policies
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultdenyegress, np1),
+			Pod:      pod2,
+			Result:   nil,
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultallowegress, np1),
+			Pod:      pod2,
+			Result:   nil,
+		},
 	}
 
 	for i, test := range tests {
@@ -347,6 +416,10 @@ func TestListIngressRulesPerPod(t *testing.T) {
 		result, err := ListIngressRulesPerPod(&test.Pod, &test.Policies)
 		if err != nil {
 			t.Errorf("Error on ListPolicyPerPod for test %d", i)
+		}
+
+		if result == nil && test.Result == nil {
+			continue
 		}
 
 		if err := testNPIngressRuleListEquality(*result, test.Result); err != nil {
@@ -376,18 +449,30 @@ func testNPIngressRuleListEquality(resultList, expectedList []networking.Network
 
 	for i, expect := range expectedList {
 		result := resultList[i]
-		data1, _ := result.Marshal()
-		data2, _ := expect.Marshal()
-		fmt.Println(string(data1))
-		if string(data1) == string(data2) {
-			fmt.Println("goof")
+		results := result.String()
+		expects := expect.String()
+		if results != expects {
+			return fmt.Errorf("Rule %d Got %s , expected %s", i, results, expects)
 		}
 	}
 
 	return nil
 }
 
-func testNPEgressRuleListEquality(result, expected []networking.NetworkPolicyEgressRule) error {
+func testNPEgressRuleListEquality(resultList, expectedList []networking.NetworkPolicyEgressRule) error {
+	if len(resultList) != len(expectedList) {
+		return fmt.Errorf("Got %d element, expected %d element", len(resultList), len(expectedList))
+	}
+
+	for i, expect := range expectedList {
+		result := resultList[i]
+		results := result.String()
+		expects := expect.String()
+		if results != expects {
+			return fmt.Errorf("Rule %d Got %s , expected %s", i, results, expects)
+		}
+	}
+
 	return nil
 }
 
