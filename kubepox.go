@@ -103,8 +103,8 @@ func egressSetGenerator(policies *networking.NetworkPolicyList) (*[]networking.N
 
 	for _, policy := range policies.Items {
 		if IsPolicyApplicableToEgress(&policy) {
+			applicable = true
 			for _, singleRule := range policy.Spec.Egress {
-				applicable = true
 				egressRules = append(egressRules, singleRule)
 			}
 		}
