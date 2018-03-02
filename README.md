@@ -1,17 +1,48 @@
 # kubepox
 
-[![Twitter URL](https://img.shields.io/badge/twitter-follow-blue.svg)](https://twitter.com/aporeto_trireme) [![Slack URL](https://img.shields.io/badge/slack-join-green.svg)](https://triremehq.slack.com/messages/general/) [![Documentation](https://img.shields.io/badge/docs-godoc-blue.svg)](https://godoc.org/github.com/aporeto-inc/trireme)
-[![Analytics](https://ga-beacon.appspot.com/UA-90298211-1/welcome-page)](https://github.com/igrigorik/ga-beacon)
+[![Twitter URL](https://img.shields.io/badge/twitter-follow-blue.svg)](https://twitter.com/aporeto_trireme) [![Slack URL](https://img.shields.io/badge/slack-join-green.svg)](https://triremehq.slack.com/messages/general/) [![Documentation](https://img.shields.io/badge/docs-godoc-blue.svg)](https://godoc.org/github.com/aporeto-inc/kubepox)
 
 Kubernetes network Policy eXploration tool
 
 ## Library
 
-kubepox is a super lightweight library that implements a simple set of logic rules in order to get exactly the Policies/Rules that apply to a specific Pod.
-kubepox doesn't connect to Kubernetes API. It takes into parameter the result of API Calls. Those API Calls have to be handled outside of kubepox (look at the CLI code for examples).
+kubepox is a lightweight library that implements the selection logic used by Kubernetes NetworkPolicies as defined on those specs:
+- https://kubernetes.io/docs/concepts/services-networking/network-policies/
+- https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.9/#networkpolicy-v1-networking
 
+kubepox takes Kubernetes Pods and NetworkPolicies as input. The implementation need to get those objects, typically from Kubernetes API.
 
-## CLI Tool
+Kubepox is used by the [Trireme-Kubernetes](https://github.com/aporeto-inc/trireme-kubernetes) project as well as the [Aporeto product](https://console.aporeto.com) to enforce pods based on Kubernetes Network-Policies
+
+Kubepox implements the following logic:
+
+- Return all the NetworkPolicies that apply to a pod out of a list:
+```
+func ListPoliciesPerPod(pod *api.Pod, allPolicies *networking.NetworkPolicyList)
+```
+- Return the list of Ingress or Egress Rules (from NetworkPolicies) that apply to a pod:
+```
+func ListIngressRulesPerPod(pod *api.Pod, allPolicies *networking.NetworkPolicyList)
+func ListEgressRulesPerPod(pod *api.Pod, allPolicies *networking.NetworkPolicyList)
+```
+- List all the pods (out of a pod list) that get affected by a policy:
+```
+func ListPodsPerPolicy(np *networking.NetworkPolicy, allPods *api.PodList)
+```
+- Decide if a  policy applies to Ingress and//or Egress:
+```
+func IsPolicyApplicableToIngress(policy *networking.NetworkPolicy)
+func IsPolicyApplicableToEgress(policy *networking.NetworkPolicy)
+```
+
+- Decide if a Pod gets affected on Ingress//Egress by at least one of the Policies out of a list:
+```
+func IsPodSelected(pod *api.Pod, policies *networking.NetworkPolicyList)
+```
+
+## CLI implementation
+
+As an example, Kubepox can be used with a CLI tool that connects to Kubernetes API  in order to display the policy logic
 
 ```
 Usage:
