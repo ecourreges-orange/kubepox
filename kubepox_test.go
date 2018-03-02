@@ -547,6 +547,21 @@ func TestListEgressRulesPerPod(t *testing.T) {
 			Result:   nil,
 		},
 
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultdenyingress, np2),
+			Pod:      pod1,
+			Result: []networking.NetworkPolicyEgressRule{
+				np2.Spec.Egress[0],
+			},
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultallowingress, np2),
+			Pod:      pod1,
+			Result: []networking.NetworkPolicyEgressRule{
+				np2.Spec.Egress[0],
+			},
+		},
+
 		// Mix of non-applicable Ingress and non-applicable Egress Policies
 		testStruct{
 			Policies: buildNetworkPolicyList(defaultdenyall),
@@ -655,6 +670,174 @@ func buildNetworkPolicyList(nps ...networking.NetworkPolicy) networking.NetworkP
 func buildPodList(pods ...api.Pod) api.PodList {
 	return api.PodList{
 		Items: pods,
+	}
+}
+
+func TestIsPolicyApplicable(t *testing.T) {
+	type testStruct struct {
+		Policy        networking.NetworkPolicy
+		ResultIngress bool
+		ResultEgress  bool
+	}
+
+	tests := []testStruct{
+		testStruct{
+			Policy:        defaultdenyingress,
+			ResultIngress: true,
+			ResultEgress:  false,
+		},
+		testStruct{
+			Policy:        defaultallowingress,
+			ResultIngress: true,
+			ResultEgress:  false,
+		},
+		testStruct{
+			Policy:        defaultdenyegress,
+			ResultIngress: false,
+			ResultEgress:  true,
+		},
+		testStruct{
+			Policy:        defaultallowegress,
+			ResultIngress: false,
+			ResultEgress:  true,
+		},
+		testStruct{
+			Policy:        defaultdenyall,
+			ResultIngress: true,
+			ResultEgress:  true,
+		},
+		testStruct{
+			Policy:        np1,
+			ResultIngress: true,
+			ResultEgress:  false,
+		},
+		testStruct{
+			Policy:        np2,
+			ResultIngress: false,
+			ResultEgress:  true,
+		},
+		testStruct{
+			Policy:        np3,
+			ResultIngress: true,
+			ResultEgress:  true,
+		},
+		testStruct{
+			Policy:        np1namespacex,
+			ResultIngress: true,
+			ResultEgress:  false,
+		},
+	}
+
+	for i, test := range tests {
+		t.Log("Testing PolicySelection ", i)
+		resultIngress := IsPolicyApplicableToIngress(&test.Policy)
+		resultEgress := IsPolicyApplicableToEgress(&test.Policy)
+
+		if resultIngress != test.ResultIngress {
+			t.Errorf("Ingress Selection error. Test %d Got %s expected %s ", i, resultIngress, test.ResultIngress)
+		}
+
+		if resultEgress != test.ResultEgress {
+			t.Errorf("Egress Selection error. Test %d Got %s expected %s ", i, resultEgress, test.ResultEgress)
+		}
+	}
+}
+
+func TestIsPodSelected(t *testing.T) {
+	type testStruct struct {
+		Policies      networking.NetworkPolicyList
+		Pod           api.Pod
+		ResultIngress bool
+		ResultEgress  bool
+	}
+
+	tests := []testStruct{
+		testStruct{
+			Policies:      buildNetworkPolicyList(np1),
+			Pod:           pod1,
+			ResultIngress: true,
+			ResultEgress:  false,
+		},
+		testStruct{
+			Policies:      buildNetworkPolicyList(np1),
+			Pod:           pod2,
+			ResultIngress: false,
+			ResultEgress:  false,
+		},
+		testStruct{
+			Policies:      buildNetworkPolicyList(defaultdenyall),
+			Pod:           pod1,
+			ResultIngress: true,
+			ResultEgress:  true,
+		},
+		testStruct{
+			Policies:      buildNetworkPolicyList(np1, np3),
+			Pod:           pod1,
+			ResultIngress: true,
+			ResultEgress:  true,
+		},
+		testStruct{
+			Policies:      buildNetworkPolicyList(defaultdenyingress, defaultdenyegress),
+			Pod:           pod1,
+			ResultIngress: true,
+			ResultEgress:  true,
+		},
+		testStruct{
+			Policies:      buildNetworkPolicyList(defaultdenyegress),
+			Pod:           pod1,
+			ResultIngress: false,
+			ResultEgress:  true,
+		},
+		testStruct{
+			Policies:      buildNetworkPolicyList(defaultdenyegress),
+			Pod:           pod1namespacex,
+			ResultIngress: false,
+			ResultEgress:  false,
+		},
+		testStruct{
+			Policies:      buildNetworkPolicyList(),
+			Pod:           pod1namespacex,
+			ResultIngress: false,
+			ResultEgress:  false,
+		},
+		testStruct{
+			Policies:      buildNetworkPolicyList(np1namespacex),
+			Pod:           pod1namespacex,
+			ResultIngress: true,
+			ResultEgress:  false,
+		},
+	}
+
+	for i, test := range tests {
+		t.Log("Testing Pod Selection ", i)
+		resultIngressCombined, resultEgressCombined, err := IsPodSelected(&test.Pod, &test.Policies)
+		if err != nil {
+			t.Errorf("Error on IsPodSelected for test %d : %s", i, err)
+		}
+
+		resultIngressDirect, err := IsPodSelectedIngress(&test.Pod, &test.Policies)
+		if err != nil {
+			t.Errorf("Error on IsPodSelectedIngress for test %d : %s", i, err)
+		}
+
+		resultEgressDirect, err := IsPodSelectedEgress(&test.Pod, &test.Policies)
+		if err != nil {
+			t.Errorf("Error on IsPodSelectedEgress for test %d : %s", i, err)
+		}
+
+		if resultIngressCombined != test.ResultIngress {
+			t.Errorf("Ingress Combined Selection error. Test %d Got %s expected %s ", i, resultIngressCombined, test.ResultIngress)
+		}
+		if resultIngressDirect != test.ResultIngress {
+			t.Errorf("Ingress Direct Selection error. Test %d Got %s expected %s ", i, resultIngressDirect, test.ResultEgress)
+		}
+
+		if resultEgressCombined != test.ResultEgress {
+			t.Errorf("Egress Combined Selection error. Test %d Got %s expected %s ", i, resultEgressCombined, test.ResultIngress)
+		}
+		if resultEgressDirect != test.ResultEgress {
+			t.Errorf("Egress Direct Selection error. Test %d Got %s expected %s ", i, resultEgressDirect, test.ResultEgress)
+		}
 	}
 }
 
