@@ -1,746 +1,928 @@
 package kubepox
 
 import (
-	"encoding/json"
 	"fmt"
-	"reflect"
 	"testing"
 
 	api "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// pod1 has one single label: "role": "WebFrontend"
-const pod1s = `{
-    "apiVersion": "v1",
-    "kind": "Pod",
-    "metadata": {
-        "creationTimestamp": "2017-02-28T19:18:52Z",
-        "labels": {
-            "role": "WebFrontend"
-        },
-        "name": "frontend",
-        "namespace": "demo",
-        "resourceVersion": "543485",
-        "selfLink": "/api/v1/namespaces/demo/pods/frontend",
-        "uid": "bd9c01fb-fdea-11e6-91a2-42010a8001b8"
-    },
-    "spec": {
-        "containers": [
-            {
-                "image": "redis",
-                "imagePullPolicy": "Always",
-                "name": "redismaster",
-                "ports": [
-                    {
-                        "containerPort": 6379,
-                        "protocol": "TCP"
-                    }
-                ],
-                "resources": {
-                    "requests": {
-                        "cpu": "100m",
-                        "memory": "100Mi"
-                    }
-                },
-                "terminationMessagePath": "/dev/termination-log",
-                "volumeMounts": [
-                    {
-                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
-                        "name": "default-token-kb5rn",
-                        "readOnly": true
-                    }
-                ]
-            }
-        ],
-        "dnsPolicy": "ClusterFirst",
-        "nodeName": "gke-test48-default-pool-1e87d955-mwh5",
-        "restartPolicy": "Always",
-        "securityContext": {},
-        "serviceAccount": "default",
-        "serviceAccountName": "default",
-        "terminationGracePeriodSeconds": 30,
-        "volumes": [
-            {
-                "name": "default-token-kb5rn",
-                "secret": {
-                    "defaultMode": 420,
-                    "secretName": "default-token-kb5rn"
-                }
-            }
-        ]
-    },
-    "status": {
-        "conditions": [
-            {
-                "lastProbeTime": null,
-                "lastTransitionTime": "2017-02-28T19:18:52Z",
-                "status": "True",
-                "type": "Initialized"
-            },
-            {
-                "lastProbeTime": null,
-                "lastTransitionTime": "2017-02-28T19:18:54Z",
-                "status": "True",
-                "type": "Ready"
-            },
-            {
-                "lastProbeTime": null,
-                "lastTransitionTime": "2017-02-28T19:18:52Z",
-                "status": "True",
-                "type": "PodScheduled"
-            }
-        ],
-        "containerStatuses": [
-            {
-                "containerID": "docker://48d8e102c086b5686abde297d983c3278af548a9551dc84facb8e77f5944bc75",
-                "image": "redis",
-                "imageID": "docker://sha256:1a8a9ee54eb755a427e00484a64fa4edbe9c2abe59ca468a4e452b343a2b57c2",
-                "lastState": {},
-                "name": "redismaster",
-                "ready": true,
-                "restartCount": 0,
-                "state": {
-                    "running": {
-                        "startedAt": "2017-02-28T19:18:53Z"
-                    }
-                }
-            }
-        ],
-        "hostIP": "10.128.0.8",
-        "phase": "Running",
-        "podIP": "10.4.2.7",
-        "startTime": "2017-02-28T19:18:52Z"
-    }
+var defaultdenyingress = networking.NetworkPolicy{
+	ObjectMeta: metav1.ObjectMeta{
+		Name: "defaultdenyingress",
+	},
+	Spec: networking.NetworkPolicySpec{
+		PolicyTypes: []networking.PolicyType{
+			networking.PolicyTypeIngress,
+		},
+	},
 }
-        `
 
-// pod2 has one single label: "role": "External"
-const pod2s = `{
-    "apiVersion": "v1",
-    "kind": "Pod",
-    "metadata": {
-        "creationTimestamp": "2017-02-28T19:18:52Z",
-        "labels": {
-            "role": "External"
-        },
-        "name": "external",
-        "namespace": "demo",
-        "resourceVersion": "543486",
-        "selfLink": "/api/v1/namespaces/demo/pods/external",
-        "uid": "bd8de6cd-fdea-11e6-91a2-42010a8001b8"
-    },
-    "spec": {
-        "containers": [
-            {
-                "image": "redis",
-                "imagePullPolicy": "Always",
-                "name": "redismaster",
-                "ports": [
-                    {
-                        "containerPort": 80,
-                        "protocol": "TCP"
-                    }
-                ],
-                "resources": {
-                    "requests": {
-                        "cpu": "100m",
-                        "memory": "100Mi"
-                    }
-                },
-                "terminationMessagePath": "/dev/termination-log",
-                "volumeMounts": [
-                    {
-                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
-                        "name": "default-token-kb5rn",
-                        "readOnly": true
-                    }
-                ]
-            }
-        ],
-        "dnsPolicy": "ClusterFirst",
-        "nodeName": "gke-test48-default-pool-1e87d955-30r9",
-        "restartPolicy": "Always",
-        "securityContext": {},
-        "serviceAccount": "default",
-        "serviceAccountName": "default",
-        "terminationGracePeriodSeconds": 30,
-        "volumes": [
-            {
-                "name": "default-token-kb5rn",
-                "secret": {
-                    "defaultMode": 420,
-                    "secretName": "default-token-kb5rn"
-                }
-            }
-        ]
-    },
-    "status": {
-        "conditions": [
-            {
-                "lastProbeTime": null,
-                "lastTransitionTime": "2017-02-28T19:18:52Z",
-                "status": "True",
-                "type": "Initialized"
-            },
-            {
-                "lastProbeTime": null,
-                "lastTransitionTime": "2017-02-28T19:18:54Z",
-                "status": "True",
-                "type": "Ready"
-            },
-            {
-                "lastProbeTime": null,
-                "lastTransitionTime": "2017-02-28T19:18:52Z",
-                "status": "True",
-                "type": "PodScheduled"
-            }
-        ],
-        "containerStatuses": [
-            {
-                "containerID": "docker://a82690934217d85872a901c877be5343f32bb8d39a8a0c7deb98bbebf5c74922",
-                "image": "redis",
-                "imageID": "docker://sha256:1a8a9ee54eb755a427e00484a64fa4edbe9c2abe59ca468a4e452b343a2b57c2",
-                "lastState": {},
-                "name": "redismaster",
-                "ready": true,
-                "restartCount": 0,
-                "state": {
-                    "running": {
-                        "startedAt": "2017-02-28T19:18:53Z"
-                    }
-                }
-            }
-        ],
-        "hostIP": "10.128.0.9",
-        "phase": "Running",
-        "podIP": "10.4.1.8",
-        "startTime": "2017-02-28T19:18:52Z"
-    }
+var defaultallowingress = networking.NetworkPolicy{
+	ObjectMeta: metav1.ObjectMeta{
+		Name: "defaultallowingress",
+	},
+	Spec: networking.NetworkPolicySpec{
+		Ingress: []networking.NetworkPolicyIngressRule{
+			networking.NetworkPolicyIngressRule{},
+		},
+	},
 }
-`
 
-// pod3 has one single label: "role": "BusinessBackend"
-const pod3s = `{
-    "apiVersion": "v1",
-    "kind": "Pod",
-    "metadata": {
-        "creationTimestamp": "2017-02-28T19:18:52Z",
-        "labels": {
-            "role": "BusinessBackend"
-        },
-        "name": "backend",
-        "namespace": "demo",
-        "resourceVersion": "543487",
-        "selfLink": "/api/v1/namespaces/demo/pods/backend",
-        "uid": "bdabca07-fdea-11e6-91a2-42010a8001b8"
-    },
-    "spec": {
-        "containers": [
-            {
-                "image": "nginx",
-                "imagePullPolicy": "Always",
-                "name": "nginx",
-                "ports": [
-                    {
-                        "containerPort": 6379,
-                        "protocol": "TCP"
-                    }
-                ],
-                "resources": {},
-                "terminationMessagePath": "/dev/termination-log",
-                "volumeMounts": [
-                    {
-                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
-                        "name": "default-token-kb5rn",
-                        "readOnly": true
-                    }
-                ]
-            }
-        ],
-        "dnsPolicy": "ClusterFirst",
-        "nodeName": "gke-test48-default-pool-1e87d955-30r9",
-        "restartPolicy": "Always",
-        "securityContext": {},
-        "serviceAccount": "default",
-        "serviceAccountName": "default",
-        "terminationGracePeriodSeconds": 30,
-        "volumes": [
-            {
-                "name": "default-token-kb5rn",
-                "secret": {
-                    "defaultMode": 420,
-                    "secretName": "default-token-kb5rn"
-                }
-            }
-        ]
-    },
-    "status": {
-        "conditions": [
-            {
-                "lastProbeTime": null,
-                "lastTransitionTime": "2017-02-28T19:18:52Z",
-                "status": "True",
-                "type": "Initialized"
-            },
-            {
-                "lastProbeTime": null,
-                "lastTransitionTime": "2017-02-28T19:18:54Z",
-                "status": "True",
-                "type": "Ready"
-            },
-            {
-                "lastProbeTime": null,
-                "lastTransitionTime": "2017-02-28T19:18:52Z",
-                "status": "True",
-                "type": "PodScheduled"
-            }
-        ],
-        "containerStatuses": [
-            {
-                "containerID": "docker://f66867c34c3f505b7296eb790fec350323d13f6f2a03f7030fa59b7171822a54",
-                "image": "nginx",
-                "imageID": "docker://sha256:db079554b4d2f7c65c4df3adae88cb72d051c8c3b8613eb44e86f60c945b1ca7",
-                "lastState": {},
-                "name": "nginx",
-                "ready": true,
-                "restartCount": 0,
-                "state": {
-                    "running": {
-                        "startedAt": "2017-02-28T19:18:54Z"
-                    }
-                }
-            }
-        ],
-        "hostIP": "10.128.0.9",
-        "phase": "Running",
-        "podIP": "10.4.1.9",
-        "startTime": "2017-02-28T19:18:52Z"
-    }
-}`
+var defaultdenyegress = networking.NetworkPolicy{
+	ObjectMeta: metav1.ObjectMeta{
+		Name: "defaultdenyegress",
+	},
+	Spec: networking.NetworkPolicySpec{
+		PolicyTypes: []networking.PolicyType{
+			networking.PolicyTypeEgress,
+		},
+	},
+}
 
-// pod4 got multiple labels: "role": "WebFrontend", "job": "worker",
-const pod4s = `{
-    "apiVersion": "v1",
-    "kind": "Pod",
-    "metadata": {
-        "creationTimestamp": "2017-02-28T19:18:52Z",
-        "labels": {
-            "role": "WebFrontend",
-            "job": "worker"
-        },
-        "name": "frontend",
-        "namespace": "demo",
-        "resourceVersion": "543485",
-        "selfLink": "/api/v1/namespaces/demo/pods/frontend",
-        "uid": "bd9c01fb-fdea-11e6-91a2-42010a8001b8"
-    },
-    "spec": {
-        "containers": [
-            {
-                "image": "redis",
-                "imagePullPolicy": "Always",
-                "name": "redismaster",
-                "ports": [
-                    {
-                        "containerPort": 6379,
-                        "protocol": "TCP"
-                    }
-                ],
-                "resources": {
-                    "requests": {
-                        "cpu": "100m",
-                        "memory": "100Mi"
-                    }
-                },
-                "terminationMessagePath": "/dev/termination-log",
-                "volumeMounts": [
-                    {
-                        "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
-                        "name": "default-token-kb5rn",
-                        "readOnly": true
-                    }
-                ]
-            }
-        ],
-        "dnsPolicy": "ClusterFirst",
-        "nodeName": "gke-test48-default-pool-1e87d955-mwh5",
-        "restartPolicy": "Always",
-        "securityContext": {},
-        "serviceAccount": "default",
-        "serviceAccountName": "default",
-        "terminationGracePeriodSeconds": 30,
-        "volumes": [
-            {
-                "name": "default-token-kb5rn",
-                "secret": {
-                    "defaultMode": 420,
-                    "secretName": "default-token-kb5rn"
-                }
-            }
-        ]
-    },
-    "status": {
-        "conditions": [
-            {
-                "lastProbeTime": null,
-                "lastTransitionTime": "2017-02-28T19:18:52Z",
-                "status": "True",
-                "type": "Initialized"
-            },
-            {
-                "lastProbeTime": null,
-                "lastTransitionTime": "2017-02-28T19:18:54Z",
-                "status": "True",
-                "type": "Ready"
-            },
-            {
-                "lastProbeTime": null,
-                "lastTransitionTime": "2017-02-28T19:18:52Z",
-                "status": "True",
-                "type": "PodScheduled"
-            }
-        ],
-        "containerStatuses": [
-            {
-                "containerID": "docker://48d8e102c086b5686abde297d983c3278af548a9551dc84facb8e77f5944bc75",
-                "image": "redis",
-                "imageID": "docker://sha256:1a8a9ee54eb755a427e00484a64fa4edbe9c2abe59ca468a4e452b343a2b57c2",
-                "lastState": {},
-                "name": "redismaster",
-                "ready": true,
-                "restartCount": 0,
-                "state": {
-                    "running": {
-                        "startedAt": "2017-02-28T19:18:53Z"
-                    }
-                }
-            }
-        ],
-        "hostIP": "10.128.0.8",
-        "phase": "Running",
-        "podIP": "10.4.2.7",
-        "startTime": "2017-02-28T19:18:52Z"
-    }
-}`
+var defaultallowegress = networking.NetworkPolicy{
+	ObjectMeta: metav1.ObjectMeta{
+		Name: "defaultallowegress",
+	},
+	Spec: networking.NetworkPolicySpec{
+		PolicyTypes: []networking.PolicyType{
+			networking.PolicyTypeEgress,
+		},
+		Egress: []networking.NetworkPolicyEgressRule{
+			networking.NetworkPolicyEgressRule{},
+		},
+	},
+}
 
-// Policy matches label "role": "WebFrontend".
-const policy1s = `{
-   "metadata": {
-      "name": "frontend-policy",
-      "namespace": "default",
-      "selfLink": "/apis/networking/v1/namespaces/default/networkpolicies/frontend-policy",
-      "uid": "22c9ad41-89b1-11e6-a046-0800277021d9",
-      "resourceVersion": "2482",
-      "generation": 1,
-      "creationTimestamp": "2016-10-03T21:34:16Z"
-   },
-   "spec": {
-      "podSelector": {
-         "matchLabels": {
-            "role": "WebFrontend"
-         }
-      },
-      "ingress": [
-         {
-            "ports": [
-               {
-                  "protocol": "tcp",
-                  "port": 80
-               },
-               {
-                  "protocol": "tcp",
-                  "port": 8080
-               }
-            ],
-            "from": [
-               {
-                  "podSelector": {
-                     "matchLabels": {
-                        "role": "WebFrontend"
-                     }
-                  }
-               },
-               {
-                  "podSelector": {
-                     "matchLabels": {
-                        "role": "BusinessBackend"
-                     }
-                  }
-               }
-            ]
-         }
-      ]
-   }
-}`
+var defaultdenyall = networking.NetworkPolicy{
+	ObjectMeta: metav1.ObjectMeta{
+		Name: "defaultdenyall",
+	},
+	Spec: networking.NetworkPolicySpec{
+		PolicyTypes: []networking.PolicyType{
+			networking.PolicyTypeEgress,
+			networking.PolicyTypeIngress,
+		},
+	},
+}
 
-// Policy matches label "role": "BusinessBackend".
-const policy2s = `{
-   "metadata": {
-      "name": "backend-policy",
-      "namespace": "default",
-      "selfLink": "/apis/networking/v1/namespaces/default/networkpolicies/backend-policy",
-      "uid": "22cde507-89b1-11e6-a046-0800277021d9",
-      "resourceVersion": "2483",
-      "generation": 1,
-      "creationTimestamp": "2016-10-03T21:34:16Z"
-   },
-   "spec": {
-      "podSelector": {
-         "matchLabels": {
-            "role": "BusinessBackend"
-         }
-      },
-      "ingress": [
-         {
-            "from": [
-               {
-                  "podSelector": {
-                     "matchLabels": {
-                        "role": "WebFrontend"
-                     }
-                  }
-               },
-               {
-                  "podSelector": {
-                     "matchLabels": {
-                        "role": "BusinessBackend"
-                     }
-                  }
-               },
-               {
-                  "podSelector": {
-                     "matchLabels": {
-                        "role": "Database"
-                     }
-                  }
-               }
-            ]
-         }
-      ]
-   }
-}`
+// np1 is ingress only for target pods with role=frontend
+var np1 = networking.NetworkPolicy{
+	ObjectMeta: metav1.ObjectMeta{
+		Name: "np1",
+	},
+	Spec: networking.NetworkPolicySpec{
+		PodSelector: metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				"role": "frontend",
+			},
+		},
+		Ingress: []networking.NetworkPolicyIngressRule{
+			networking.NetworkPolicyIngressRule{
+				From: []networking.NetworkPolicyPeer{
+					networking.NetworkPolicyPeer{
+						PodSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"role": "backend",
+							},
+						},
+					},
+				},
+			},
+		},
+	},
+}
 
-// Policy matches label "role": "Database".
-const policy3s = `{
-   "metadata": {
-      "name": "database-policy",
-      "namespace": "default",
-      "selfLink": "/apis/networking/v1/namespaces/default/networkpolicies/database-policy",
-      "uid": "22d227d2-89b1-11e6-a046-0800277021d9",
-      "resourceVersion": "2484",
-      "generation": 1,
-      "creationTimestamp": "2016-10-03T21:34:16Z"
-   },
-   "spec": {
-      "podSelector": {
-         "matchLabels": {
-            "role": "Database"
-         }
-      },
-      "ingress": [
-         {
-            "from": [
-               {
-                  "podSelector": {
-                     "matchLabels": {
-                        "role": "BusinessBackend"
-                     }
-                  }
-               },
-               {
-                  "podSelector": {
-                     "matchLabels": {
-                        "role": "Database"
-                     }
-                  }
-               }
-            ]
-         }
-      ]
-   }
-}`
+// np1 is ingress only for target pods with role=frontend
+var np1namespacex = networking.NetworkPolicy{
+	ObjectMeta: metav1.ObjectMeta{
+		Name:      "np1",
+		Namespace: "x",
+	},
+	Spec: networking.NetworkPolicySpec{
+		PodSelector: metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				"role": "frontend",
+			},
+		},
+		Ingress: []networking.NetworkPolicyIngressRule{
+			networking.NetworkPolicyIngressRule{
+				From: []networking.NetworkPolicyPeer{
+					networking.NetworkPolicyPeer{
+						PodSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"role": "backend",
+							},
+						},
+					},
+				},
+			},
+		},
+	},
+}
 
-// Policy matches label "role": "Database".
-const policy4s = `{
-   "metadata": {
-      "name": "database-policy",
-      "namespace": "default",
-      "selfLink": "/apis/networking/v1/namespaces/default/networkpolicies/database-policy",
-      "uid": "22d227d2-89b1-11e6-a046-0800277021d9",
-      "resourceVersion": "2484",
-      "generation": 1,
-      "creationTimestamp": "2016-10-03T21:34:16Z"
-   },
-   "spec": {
-      "podSelector": {
-         "matchLabels": {
-            "job": "worker"
-         }
-      },
-      "ingress": [
-         {
-            "from": [
-               {
-                  "podSelector": {
-                     "matchLabels": {
-                        "xcvxcv": "asdasd"
-                     }
-                  }
-               },
-               {
-                  "podSelector": {
-                     "matchLabels": {
-                        "ZXZX": "qwewqeqwe"
-                     }
-                  }
-               }
-            ]
-         }
-      ]
-   }
-}`
+// np2 is egress only for target pods with role=frontend
+var np2 = networking.NetworkPolicy{
+	ObjectMeta: metav1.ObjectMeta{
+		Name: "np2",
+	},
+	Spec: networking.NetworkPolicySpec{
+		PodSelector: metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				"role": "frontend",
+			},
+		},
+		Egress: []networking.NetworkPolicyEgressRule{
+			networking.NetworkPolicyEgressRule{
+				To: []networking.NetworkPolicyPeer{
+					networking.NetworkPolicyPeer{
+						PodSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"role": "backend",
+							},
+						},
+					},
+				},
+			},
+		},
+		PolicyTypes: []networking.PolicyType{
+			networking.PolicyTypeEgress,
+		},
+	},
+}
 
-func TestSingleLabelMatch(t *testing.T) {
-	pod1 := api.Pod{}
-	pod2 := api.Pod{}
-	pod3 := api.Pod{}
+// np3 is ingress and egress for target pods role=frontend
+var np3 = networking.NetworkPolicy{
+	ObjectMeta: metav1.ObjectMeta{
+		Name: "np3",
+	},
+	Spec: networking.NetworkPolicySpec{
+		PodSelector: metav1.LabelSelector{
+			MatchLabels: map[string]string{
+				"role": "frontend",
+			},
+		},
+		Ingress: []networking.NetworkPolicyIngressRule{
+			networking.NetworkPolicyIngressRule{
+				From: []networking.NetworkPolicyPeer{
+					networking.NetworkPolicyPeer{
+						PodSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"role": "backend",
+							},
+						},
+					},
+				},
+			},
+		},
+		Egress: []networking.NetworkPolicyEgressRule{
+			networking.NetworkPolicyEgressRule{
+				To: []networking.NetworkPolicyPeer{
+					networking.NetworkPolicyPeer{
+						PodSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{
+								"role": "backend",
+							},
+						},
+					},
+				},
+			},
+		},
+	},
+}
 
-	policy1 := networking.NetworkPolicy{}
-	policy2 := networking.NetworkPolicy{}
-	policy3 := networking.NetworkPolicy{}
+// pod1 is a target pod with role=frontend
+var pod1 = api.Pod{
+	ObjectMeta: metav1.ObjectMeta{
+		Name: "pod1",
+		Labels: map[string]string{
+			"role": "frontend",
+		},
+	},
+}
 
-	json.Unmarshal([]byte(pod1s), &pod1)
-	json.Unmarshal([]byte(pod2s), &pod2)
-	json.Unmarshal([]byte(pod3s), &pod3)
+// pod1 is a target pod with role=frontend
+var pod1namespacex = api.Pod{
+	ObjectMeta: metav1.ObjectMeta{
+		Name:      "pod1",
+		Namespace: "x",
+		Labels: map[string]string{
+			"role": "frontend",
+		},
+	},
+}
 
-	json.Unmarshal([]byte(policy1s), &policy1)
-	json.Unmarshal([]byte(policy2s), &policy2)
-	json.Unmarshal([]byte(policy3s), &policy3)
+// pod2 is a target pod with role=backend
+var pod2 = api.Pod{
+	ObjectMeta: metav1.ObjectMeta{
+		Name: "pod2",
+		Labels: map[string]string{
+			"role": "backend",
+		},
+	},
+}
 
-	policyList := networking.NetworkPolicyList{
-		Items: []networking.NetworkPolicy{policy1,
-			policy2,
-			policy3,
+func TestListPoliciesPerPod(t *testing.T) {
+
+	type testStruct struct {
+		Policies networking.NetworkPolicyList
+		Pod      api.Pod
+		Result   networking.NetworkPolicyList
+	}
+
+	tests := []testStruct{
+		testStruct{
+			Policies: buildNetworkPolicyList(),
+			Pod:      pod1,
+			Result:   buildNetworkPolicyList(),
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultdenyall),
+			Pod:      pod1,
+			Result:   buildNetworkPolicyList(defaultdenyall),
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultdenyingress, defaultallowingress, defaultdenyegress, defaultdenyegress, defaultdenyall),
+			Pod:      pod2,
+			Result:   buildNetworkPolicyList(defaultdenyingress, defaultallowingress, defaultdenyegress, defaultdenyegress, defaultdenyall),
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(np1),
+			Pod:      pod1,
+			Result:   buildNetworkPolicyList(np1),
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(np1, np2),
+			Pod:      pod1,
+			Result:   buildNetworkPolicyList(np1, np2),
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(np1, np2, np3),
+			Pod:      pod1,
+			Result:   buildNetworkPolicyList(np1, np2, np3),
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(),
+			Pod:      pod2,
+			Result:   buildNetworkPolicyList(),
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(np1),
+			Pod:      pod2,
+			Result:   buildNetworkPolicyList(),
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(np1, np2),
+			Pod:      pod2,
+			Result:   buildNetworkPolicyList(),
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(np1, np2, np3),
+			Pod:      pod2,
+			Result:   buildNetworkPolicyList(),
+		},
+
+		// different namespace tests
+		testStruct{
+			Policies: buildNetworkPolicyList(np1, np2, np3),
+			Pod:      pod1namespacex,
+			Result:   buildNetworkPolicyList(),
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(np1namespacex),
+			Pod:      pod1,
+			Result:   buildNetworkPolicyList(),
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(np1namespacex),
+			Pod:      pod1namespacex,
+			Result:   buildNetworkPolicyList(np1namespacex),
 		},
 	}
 
-	podList := api.PodList{
-		Items: []api.Pod{pod1,
-			pod2,
-			pod3,
+	for i, test := range tests {
+		t.Log("Testing ListPolicyPerPod ", i)
+		result, err := ListPoliciesPerPod(&test.Pod, &test.Policies)
+		if err != nil {
+			t.Errorf("Error on ListPolicyPerPod for test %d", i)
+		}
+
+		if err := testNPListEquality(*result, test.Result); err != nil {
+			t.Errorf("Error on  ListPolicyPerPod test %ds : %s ", i, err)
+		}
+	}
+
+}
+
+func TestListIngressRulesPerPod(t *testing.T) {
+
+	type testStruct struct {
+		Policies networking.NetworkPolicyList
+		Pod      api.Pod
+		Result   []networking.NetworkPolicyIngressRule
+	}
+
+	tests := []testStruct{
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultdenyingress),
+			Pod:      pod1,
+			Result:   []networking.NetworkPolicyIngressRule{},
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultallowingress),
+			Pod:      pod1,
+			Result: []networking.NetworkPolicyIngressRule{
+				networking.NetworkPolicyIngressRule{},
+			},
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultdenyingress, np1),
+			Pod:      pod1,
+			Result: []networking.NetworkPolicyIngressRule{
+				np1.Spec.Ingress[0],
+			},
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultallowingress, np1),
+			Pod:      pod1,
+			Result: []networking.NetworkPolicyIngressRule{
+				networking.NetworkPolicyIngressRule{},
+				np1.Spec.Ingress[0],
+			},
+		},
+
+		// One of the policy not apploed for this specific pod.
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultdenyingress, np1),
+			Pod:      pod2,
+			Result:   []networking.NetworkPolicyIngressRule{},
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultallowingress, np1),
+			Pod:      pod2,
+			Result: []networking.NetworkPolicyIngressRule{
+				networking.NetworkPolicyIngressRule{},
+			},
+		},
+
+		// Policies not applicatble to Ingress
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultdenyegress),
+			Pod:      pod1,
+			Result:   nil,
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultallowegress),
+			Pod:      pod1,
+			Result:   nil,
+		},
+
+		// Mix of applicable Ingress and non-applicable Egress Policies
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultdenyegress, np1),
+			Pod:      pod1,
+			Result: []networking.NetworkPolicyIngressRule{
+				np1.Spec.Ingress[0],
+			},
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultallowegress, np1),
+			Pod:      pod1,
+			Result: []networking.NetworkPolicyIngressRule{
+				np1.Spec.Ingress[0],
+			},
+		},
+
+		// Mix of non-applicable Ingress and non-applicable Egress Policies
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultdenyegress, np1),
+			Pod:      pod2,
+			Result:   nil,
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultallowegress, np1),
+			Pod:      pod2,
+			Result:   nil,
+		},
+
+		// Mix of non-applicable Ingress and non-applicable Egress Policies
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultdenyall),
+			Pod:      pod1,
+			Result:   []networking.NetworkPolicyIngressRule{},
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultdenyall, np1),
+			Pod:      pod1,
+			Result: []networking.NetworkPolicyIngressRule{
+				np1.Spec.Ingress[0],
+			},
+		},
+		// Mix of non-applicable Ingress and non-applicable Egress Policies
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultdenyall),
+			Pod:      pod2,
+			Result:   []networking.NetworkPolicyIngressRule{},
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultdenyall, np1),
+			Pod:      pod2,
+			Result:   []networking.NetworkPolicyIngressRule{},
 		},
 	}
 
-	// Testing frontend
-	t.Log("Testing Pod frontend single policy match")
-	fmt.Printf("POD1: %+v \n\n\n", pod1)
+	for i, test := range tests {
+		t.Log("Testing ListPolicyPerPod Ingress ", i)
+		result, err := ListIngressRulesPerPod(&test.Pod, &test.Policies)
+		if err != nil {
+			t.Errorf("Error on ListPolicyPerPod for test %d", i)
+		}
 
-	result, _ := ListPoliciesPerPod(&pod1, &policyList)
-	fmt.Printf("RESULTS %+v", result)
-	if len(result.Items) != 1 {
-		t.Errorf("Expected 1 policy match for frontend, got %d", len(result.Items))
-	}
-	if !reflect.DeepEqual(result.Items[0], policy1) {
-		t.Errorf("Expected PolicyMatch for WebFrontend")
-	}
+		if result == nil && test.Result == nil {
+			continue
+		}
 
-	resultRules, _ := ListIngressRulesPerPod(&pod1, &policyList)
-	if !reflect.DeepEqual(*resultRules, policy1.Spec.Ingress) {
-		t.Errorf("Expected RuleMatch for WebFrontend")
+		if err := testNPIngressRuleListEquality(*result, test.Result); err != nil {
+			t.Errorf("Error on  ListPolicyPerPod test %ds : %s ", i, err)
+		}
 	}
 
-	// Testing External
-	t.Log("Testing Pod External no policy match")
-	result, _ = ListPoliciesPerPod(&pod2, &policyList)
-	if len(result.Items) != 0 {
-		t.Errorf("Expected 0 policy match for external, got %d", len(result.Items))
+}
+
+func TestListEgressRulesPerPod(t *testing.T) {
+
+	type testStruct struct {
+		Policies networking.NetworkPolicyList
+		Pod      api.Pod
+		Result   []networking.NetworkPolicyEgressRule
 	}
 
-	// Testing BusinessBackend
-	t.Log("Testing Pod Backend single policy match")
-	result, _ = ListPoliciesPerPod(&pod3, &policyList)
-	if len(result.Items) != 1 {
-		t.Errorf("Expected 1 policy match for BusinessBackend, got %d", len(result.Items))
-	}
-	if !reflect.DeepEqual(result.Items[0], policy2) {
-		t.Errorf("Expected PolicyMatch for BusinessBackend")
+	tests := []testStruct{
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultdenyegress),
+			Pod:      pod1,
+			Result:   []networking.NetworkPolicyEgressRule{},
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultallowegress),
+			Pod:      pod1,
+			Result: []networking.NetworkPolicyEgressRule{
+				networking.NetworkPolicyEgressRule{},
+			},
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultdenyegress, np3),
+			Pod:      pod1,
+			Result: []networking.NetworkPolicyEgressRule{
+				np3.Spec.Egress[0],
+			},
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultallowegress, np3),
+			Pod:      pod1,
+			Result: []networking.NetworkPolicyEgressRule{
+				networking.NetworkPolicyEgressRule{},
+				np3.Spec.Egress[0],
+			},
+		},
+
+		// One of the policy not apploed for this specific pod.
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultdenyegress, np3),
+			Pod:      pod2,
+			Result:   []networking.NetworkPolicyEgressRule{},
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultallowegress, np3),
+			Pod:      pod2,
+			Result: []networking.NetworkPolicyEgressRule{
+				networking.NetworkPolicyEgressRule{},
+			},
+		},
+
+		// Policies not applicatble to Ingress
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultdenyingress),
+			Pod:      pod1,
+			Result:   nil,
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultallowingress),
+			Pod:      pod1,
+			Result:   nil,
+		},
+
+		// Mix of applicable Ingress and non-applicable Egress Policies
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultdenyingress, np3),
+			Pod:      pod1,
+			Result: []networking.NetworkPolicyEgressRule{
+				np3.Spec.Egress[0],
+			},
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultallowingress, np3),
+			Pod:      pod1,
+			Result: []networking.NetworkPolicyEgressRule{
+				np3.Spec.Egress[0],
+			},
+		},
+
+		// Mix of non-applicable Ingress and non-applicable Egress Policies
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultdenyingress, np1),
+			Pod:      pod2,
+			Result:   nil,
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultallowingress, np1),
+			Pod:      pod2,
+			Result:   nil,
+		},
+
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultdenyingress, np2),
+			Pod:      pod1,
+			Result: []networking.NetworkPolicyEgressRule{
+				np2.Spec.Egress[0],
+			},
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultallowingress, np2),
+			Pod:      pod1,
+			Result: []networking.NetworkPolicyEgressRule{
+				np2.Spec.Egress[0],
+			},
+		},
+
+		// Mix of non-applicable Ingress and non-applicable Egress Policies
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultdenyall),
+			Pod:      pod1,
+			Result:   []networking.NetworkPolicyEgressRule{},
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultdenyall, np3),
+			Pod:      pod1,
+			Result: []networking.NetworkPolicyEgressRule{
+				np3.Spec.Egress[0],
+			},
+		},
+		// Mix of non-applicable Ingress and non-applicable Egress Policies
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultdenyall),
+			Pod:      pod2,
+			Result:   []networking.NetworkPolicyEgressRule{},
+		},
+		testStruct{
+			Policies: buildNetworkPolicyList(defaultdenyall, np3),
+			Pod:      pod2,
+			Result:   []networking.NetworkPolicyEgressRule{},
+		},
 	}
 
-	resultRules, _ = ListIngressRulesPerPod(&pod3, &policyList)
-	if !reflect.DeepEqual(*resultRules, policy2.Spec.Ingress) {
-		t.Errorf("Expected RuleMatch for BusinessBackend")
+	for i, test := range tests {
+		t.Log("Testing ListPolicyPerPod Egress ", i)
+		result, err := ListEgressRulesPerPod(&test.Pod, &test.Policies)
+		if err != nil {
+			t.Errorf("Error on ListPolicyPerPod Egress for test %d", i)
+		}
+
+		if result == nil && test.Result == nil {
+			continue
+		}
+		if result != nil && test.Result == nil {
+			t.Errorf("Issue 1 %d", i)
+		}
+		if result == nil && test.Result != nil {
+			t.Errorf("Issue 2 %d", i)
+		}
+
+		if err := testNPEgressRuleListEquality(*result, test.Result); err != nil {
+			t.Errorf("Error on  ListPolicyPerPod test %ds : %s ", i, err)
+		}
 	}
 
-	// Testing Policy1:
-	t.Log("Testing PolicyFrontend Policy")
-	resultPods, _ := ListPodsPerPolicy(&policy1, &podList)
-	if len(resultPods.Items) != 1 {
-		t.Errorf("Expected 1 Pod match for policy frontend, got %d", len(resultPods.Items))
-	}
-	if !reflect.DeepEqual(resultPods.Items[0], pod1) {
-		t.Errorf("Failed pod match for Frontend ListPodsPerPolicy")
+}
+
+func TestListPodsPerPolicy(t *testing.T) {
+	type testStruct struct {
+		Policy networking.NetworkPolicy
+		Pods   api.PodList
+		Result api.PodList
 	}
 
-	// Testing Policy2:
-	t.Log("Testing BusinessBackend Policy")
-	resultPods, _ = ListPodsPerPolicy(&policy2, &podList)
-	if len(resultPods.Items) != 1 {
-		t.Errorf("Expected 1 Pod match for policy frontend, got %d", len(resultPods.Items))
-	}
-	if !reflect.DeepEqual(resultPods.Items[0], pod3) {
-		t.Errorf("Failed pod match for Frontend ListPodsPerPolicy")
+	tests := []testStruct{
+		testStruct{
+			Policy: np1,
+			Pods:   buildPodList(pod1),
+			Result: buildPodList(pod1),
+		},
+		testStruct{
+			Policy: np1,
+			Pods:   buildPodList(pod2),
+			Result: buildPodList(),
+		},
+		testStruct{
+			Policy: np1,
+			Pods:   buildPodList(pod1, pod2),
+			Result: buildPodList(pod1),
+		},
+		testStruct{
+			Policy: defaultdenyall,
+			Pods:   buildPodList(pod1, pod2),
+			Result: buildPodList(pod1, pod2),
+		},
+		testStruct{
+			Policy: defaultdenyall,
+			Pods:   buildPodList(),
+			Result: buildPodList(),
+		},
 	}
 
-	// Testing Policy 3
-	t.Log("Testing Database Policy")
-	resultPods, _ = ListPodsPerPolicy(&policy3, &podList)
-	if len(resultPods.Items) != 0 {
-		t.Errorf("Expected 1 Pod match for policy frontend, got %d", len(resultPods.Items))
+	for i, test := range tests {
+		t.Log("Testing ListPodsPerPolicy ", i)
+		result, err := ListPodsPerPolicy(&test.Policy, &test.Pods)
+		if err != nil {
+			t.Errorf("Error on ListPodsPerPolicy for test %d", i)
+		}
+
+		if err := testPodListEquality(*result, test.Result); err != nil {
+			t.Errorf("Error on ListPodsPerPolicy test %ds : %s ", i, err)
+		}
+	}
+
+}
+
+func buildNetworkPolicyList(nps ...networking.NetworkPolicy) networking.NetworkPolicyList {
+	return networking.NetworkPolicyList{
+		Items: nps,
 	}
 }
 
-func TestMultipleLabelMatch(t *testing.T) {
-	pod4 := api.Pod{}
+func buildPodList(pods ...api.Pod) api.PodList {
+	return api.PodList{
+		Items: pods,
+	}
+}
 
-	policy1 := networking.NetworkPolicy{}
-	policy2 := networking.NetworkPolicy{}
-	policy3 := networking.NetworkPolicy{}
-	policy4 := networking.NetworkPolicy{}
+func TestIsPolicyApplicable(t *testing.T) {
+	type testStruct struct {
+		Policy        networking.NetworkPolicy
+		ResultIngress bool
+		ResultEgress  bool
+	}
 
-	json.Unmarshal([]byte(pod4s), &pod4)
-
-	json.Unmarshal([]byte(policy1s), &policy1)
-	json.Unmarshal([]byte(policy2s), &policy2)
-	json.Unmarshal([]byte(policy3s), &policy3)
-	json.Unmarshal([]byte(policy4s), &policy4)
-
-	policyList := networking.NetworkPolicyList{
-		Items: []networking.NetworkPolicy{policy1,
-			policy2,
-			policy3,
-			policy4,
+	tests := []testStruct{
+		testStruct{
+			Policy:        defaultdenyingress,
+			ResultIngress: true,
+			ResultEgress:  false,
+		},
+		testStruct{
+			Policy:        defaultallowingress,
+			ResultIngress: true,
+			ResultEgress:  false,
+		},
+		testStruct{
+			Policy:        defaultdenyegress,
+			ResultIngress: false,
+			ResultEgress:  true,
+		},
+		testStruct{
+			Policy:        defaultallowegress,
+			ResultIngress: false,
+			ResultEgress:  true,
+		},
+		testStruct{
+			Policy:        defaultdenyall,
+			ResultIngress: true,
+			ResultEgress:  true,
+		},
+		testStruct{
+			Policy:        np1,
+			ResultIngress: true,
+			ResultEgress:  false,
+		},
+		testStruct{
+			Policy:        np2,
+			ResultIngress: false,
+			ResultEgress:  true,
+		},
+		testStruct{
+			Policy:        np3,
+			ResultIngress: true,
+			ResultEgress:  true,
+		},
+		testStruct{
+			Policy:        np1namespacex,
+			ResultIngress: true,
+			ResultEgress:  false,
 		},
 	}
 
-	expectedPolicies := networking.NetworkPolicyList{Items: []networking.NetworkPolicy{policy1, policy4}}
-	expectedRules := append(policy1.Spec.Ingress, policy4.Spec.Ingress...)
-	// Testing pod4
-	t.Log("Testing Pod 4 Multible policy match")
-	resultPolicies, _ := ListPoliciesPerPod(&pod4, &policyList)
-	if len(resultPolicies.Items) != 2 {
-		t.Errorf("Expected 2 policy match for pod4, got %d", len(resultPolicies.Items))
+	for i, test := range tests {
+		t.Log("Testing PolicySelection ", i)
+		resultIngress := IsPolicyApplicableToIngress(&test.Policy)
+		resultEgress := IsPolicyApplicableToEgress(&test.Policy)
+
+		if resultIngress != test.ResultIngress {
+			t.Errorf("Ingress Selection error. Test %d Got %s expected %s ", i, resultIngress, test.ResultIngress)
+		}
+
+		if resultEgress != test.ResultEgress {
+			t.Errorf("Egress Selection error. Test %d Got %s expected %s ", i, resultEgress, test.ResultEgress)
+		}
 	}
-	if !reflect.DeepEqual(*resultPolicies, expectedPolicies) {
-		t.Errorf("Expected Policy Match for pod4: \n got %+v ,\n expected %+v", resultPolicies, expectedPolicies)
+}
+
+func TestIsPodSelected(t *testing.T) {
+	type testStruct struct {
+		Policies      networking.NetworkPolicyList
+		Pod           api.Pod
+		ResultIngress bool
+		ResultEgress  bool
 	}
 
-	resultRules, _ := ListIngressRulesPerPod(&pod4, &policyList)
-	if len(*resultRules) != 2 {
-		t.Errorf("Expected 2 rule match for pod4, got %d", len(*resultRules))
-	}
-	if !reflect.DeepEqual(*resultRules, expectedRules) {
-		t.Errorf("Expected rule match for pod4: \n got %+v ,\n  expected %+v", resultRules, expectedRules)
+	tests := []testStruct{
+		testStruct{
+			Policies:      buildNetworkPolicyList(np1),
+			Pod:           pod1,
+			ResultIngress: true,
+			ResultEgress:  false,
+		},
+		testStruct{
+			Policies:      buildNetworkPolicyList(np1),
+			Pod:           pod2,
+			ResultIngress: false,
+			ResultEgress:  false,
+		},
+		testStruct{
+			Policies:      buildNetworkPolicyList(defaultdenyall),
+			Pod:           pod1,
+			ResultIngress: true,
+			ResultEgress:  true,
+		},
+		testStruct{
+			Policies:      buildNetworkPolicyList(np1, np3),
+			Pod:           pod1,
+			ResultIngress: true,
+			ResultEgress:  true,
+		},
+		testStruct{
+			Policies:      buildNetworkPolicyList(defaultdenyingress, defaultdenyegress),
+			Pod:           pod1,
+			ResultIngress: true,
+			ResultEgress:  true,
+		},
+		testStruct{
+			Policies:      buildNetworkPolicyList(defaultdenyegress),
+			Pod:           pod1,
+			ResultIngress: false,
+			ResultEgress:  true,
+		},
+		testStruct{
+			Policies:      buildNetworkPolicyList(defaultdenyegress),
+			Pod:           pod1namespacex,
+			ResultIngress: false,
+			ResultEgress:  false,
+		},
+		testStruct{
+			Policies:      buildNetworkPolicyList(),
+			Pod:           pod1namespacex,
+			ResultIngress: false,
+			ResultEgress:  false,
+		},
+		testStruct{
+			Policies:      buildNetworkPolicyList(np1namespacex),
+			Pod:           pod1namespacex,
+			ResultIngress: true,
+			ResultEgress:  false,
+		},
 	}
 
+	for i, test := range tests {
+		t.Log("Testing Pod Selection ", i)
+		resultIngressCombined, resultEgressCombined, err := IsPodSelected(&test.Pod, &test.Policies)
+		if err != nil {
+			t.Errorf("Error on IsPodSelected for test %d : %s", i, err)
+		}
+
+		resultIngressDirect, err := IsPodSelectedIngress(&test.Pod, &test.Policies)
+		if err != nil {
+			t.Errorf("Error on IsPodSelectedIngress for test %d : %s", i, err)
+		}
+
+		resultEgressDirect, err := IsPodSelectedEgress(&test.Pod, &test.Policies)
+		if err != nil {
+			t.Errorf("Error on IsPodSelectedEgress for test %d : %s", i, err)
+		}
+
+		if resultIngressCombined != test.ResultIngress {
+			t.Errorf("Ingress Combined Selection error. Test %d Got %s expected %s ", i, resultIngressCombined, test.ResultIngress)
+		}
+		if resultIngressDirect != test.ResultIngress {
+			t.Errorf("Ingress Direct Selection error. Test %d Got %s expected %s ", i, resultIngressDirect, test.ResultEgress)
+		}
+
+		if resultEgressCombined != test.ResultEgress {
+			t.Errorf("Egress Combined Selection error. Test %d Got %s expected %s ", i, resultEgressCombined, test.ResultIngress)
+		}
+		if resultEgressDirect != test.ResultEgress {
+			t.Errorf("Egress Direct Selection error. Test %d Got %s expected %s ", i, resultEgressDirect, test.ResultEgress)
+		}
+	}
+}
+
+func testNPIngressRuleListEquality(resultList, expectedList []networking.NetworkPolicyIngressRule) error {
+	//fmt.Printf("RESULT: %+v, \n EXPECTED: %+v \n", resultList, expectedList)
+	if len(resultList) != len(expectedList) {
+		return fmt.Errorf("Got %d element, expected %d element", len(resultList), len(expectedList))
+	}
+
+	for i, expect := range expectedList {
+		result := resultList[i]
+		results := result.String()
+		expects := expect.String()
+		if results != expects {
+			return fmt.Errorf("Rule %d Got %s , expected %s", i, results, expects)
+		}
+	}
+
+	return nil
+}
+
+func testNPEgressRuleListEquality(resultList, expectedList []networking.NetworkPolicyEgressRule) error {
+	if len(resultList) != len(expectedList) {
+		return fmt.Errorf("Got %d element, expected %d element", len(resultList), len(expectedList))
+	}
+
+	for i, expect := range expectedList {
+		result := resultList[i]
+		results := result.String()
+		expects := expect.String()
+		if results != expects {
+			return fmt.Errorf("Rule %d Got %s , expected %s", i, results, expects)
+		}
+	}
+
+	return nil
+}
+
+func testNPListEquality(result, expected networking.NetworkPolicyList) error {
+	if len(result.Items) != len(expected.Items) {
+		return fmt.Errorf("Got %d element, expected %d element", len(result.Items), len(expected.Items))
+	}
+
+MainLoop1:
+	for _, expectedPolicy := range expected.Items {
+		for _, resultPolicy := range result.Items {
+			if expectedPolicy.Name == resultPolicy.Name {
+				continue MainLoop1
+			}
+		}
+		return fmt.Errorf("Couldn't find expected np %s element in result", expectedPolicy.Name)
+	}
+
+MainLoop2:
+	for _, resultPolicy := range result.Items {
+		for _, expectedPolicy := range expected.Items {
+			if expectedPolicy.Name == resultPolicy.Name {
+				continue MainLoop2
+			}
+		}
+		return fmt.Errorf("Couldn't find result np %s element in result", resultPolicy.Name)
+	}
+
+	return nil
+}
+
+func testPodListEquality(result, expected api.PodList) error {
+	if len(result.Items) != len(expected.Items) {
+		return fmt.Errorf("Got %d element, expected %d element", len(result.Items), len(expected.Items))
+	}
+
+MainLoop1:
+	for _, expectedPod := range expected.Items {
+		for _, resultPod := range result.Items {
+			if expectedPod.Name == resultPod.Name {
+				continue MainLoop1
+			}
+		}
+		return fmt.Errorf("Couldn't find expected np %s element in result", expectedPod.Name)
+	}
+
+MainLoop2:
+	for _, resultPod := range result.Items {
+		for _, expectedPod := range expected.Items {
+			if expectedPod.Name == resultPod.Name {
+				continue MainLoop2
+			}
+		}
+		return fmt.Errorf("Couldn't find result np %s element in result", resultPod.Name)
+	}
+
+	return nil
 }
