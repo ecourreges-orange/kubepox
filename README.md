@@ -10,7 +10,7 @@ Kubernetes network Policy eXploration tool
 kubepox is a lightweight library that implements the selection logic used by Kubernetes NetworkPolicies as defined on those specs:
 - https://kubernetes.io/docs/concepts/services-networking/network-policies/
 - https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.9/#networkpolicy-v1-networking
--
+
 kubepox takes Kubernetes Pods and NetworkPolicies as input. The implementation need to get those objects, typically from Kubernetes API.
 
 Kubepox is used by the [Trireme-Kubernetes](https://github.com/aporeto-inc/trireme-kubernetes) project as well as the [Aporeto product](https://console.aporeto.com) to enforce pods based on Kubernetes Network-Policies
@@ -40,8 +40,6 @@ func IsPolicyApplicableToEgress(policy *networking.NetworkPolicy)
 ```
 func IsPodSelected(pod *api.Pod, policies *networking.NetworkPolicyList)
 ```
-
-
 
 ## CLI implementation
 
