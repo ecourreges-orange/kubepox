@@ -597,6 +597,55 @@ func TestListEgressRulesPerPod(t *testing.T) {
 
 }
 
+func TestListPodsPerPolicy(t *testing.T) {
+	type testStruct struct {
+		Policy networking.NetworkPolicy
+		Pods   api.PodList
+		Result api.PodList
+	}
+
+	tests := []testStruct{
+		testStruct{
+			Policy: np1,
+			Pods:   buildPodList(pod1),
+			Result: buildPodList(pod1),
+		},
+		testStruct{
+			Policy: np1,
+			Pods:   buildPodList(pod2),
+			Result: buildPodList(),
+		},
+		testStruct{
+			Policy: np1,
+			Pods:   buildPodList(pod1, pod2),
+			Result: buildPodList(pod1),
+		},
+		testStruct{
+			Policy: defaultdenyall,
+			Pods:   buildPodList(pod1, pod2),
+			Result: buildPodList(pod1, pod2),
+		},
+		testStruct{
+			Policy: defaultdenyall,
+			Pods:   buildPodList(),
+			Result: buildPodList(),
+		},
+	}
+
+	for i, test := range tests {
+		t.Log("Testing ListPodsPerPolicy ", i)
+		result, err := ListPodsPerPolicy(&test.Policy, &test.Pods)
+		if err != nil {
+			t.Errorf("Error on ListPodsPerPolicy for test %d", i)
+		}
+
+		if err := testPodListEquality(*result, test.Result); err != nil {
+			t.Errorf("Error on ListPodsPerPolicy test %ds : %s ", i, err)
+		}
+	}
+
+}
+
 func buildNetworkPolicyList(nps ...networking.NetworkPolicy) networking.NetworkPolicyList {
 	return networking.NetworkPolicyList{
 		Items: nps,
@@ -667,6 +716,34 @@ MainLoop2:
 			}
 		}
 		return fmt.Errorf("Couldn't find result np %s element in result", resultPolicy.Name)
+	}
+
+	return nil
+}
+
+func testPodListEquality(result, expected api.PodList) error {
+	if len(result.Items) != len(expected.Items) {
+		return fmt.Errorf("Got %d element, expected %d element", len(result.Items), len(expected.Items))
+	}
+
+MainLoop1:
+	for _, expectedPod := range expected.Items {
+		for _, resultPod := range result.Items {
+			if expectedPod.Name == resultPod.Name {
+				continue MainLoop1
+			}
+		}
+		return fmt.Errorf("Couldn't find expected np %s element in result", expectedPod.Name)
+	}
+
+MainLoop2:
+	for _, resultPod := range result.Items {
+		for _, expectedPod := range expected.Items {
+			if expectedPod.Name == resultPod.Name {
+				continue MainLoop2
+			}
+		}
+		return fmt.Errorf("Couldn't find result np %s element in result", resultPod.Name)
 	}
 
 	return nil
