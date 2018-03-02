@@ -9,7 +9,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// np2 is egress only for target pods with role=frontend
 var defaultdenyingress = networking.NetworkPolicy{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "defaultdenyingress",
@@ -21,7 +20,6 @@ var defaultdenyingress = networking.NetworkPolicy{
 	},
 }
 
-// np2 is egress only for target pods with role=frontend
 var defaultallowingress = networking.NetworkPolicy{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "defaultallowingress",
@@ -33,7 +31,6 @@ var defaultallowingress = networking.NetworkPolicy{
 	},
 }
 
-// np2 is egress only for target pods with role=frontend
 var defaultdenyegress = networking.NetworkPolicy{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "defaultdenyegress",
@@ -45,7 +42,6 @@ var defaultdenyegress = networking.NetworkPolicy{
 	},
 }
 
-// np2 is egress only for target pods with role=frontend
 var defaultallowegress = networking.NetworkPolicy{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "defaultallowegress",
@@ -60,7 +56,6 @@ var defaultallowegress = networking.NetworkPolicy{
 	},
 }
 
-// np2 is egress only for target pods with role=frontend
 var defaultdenyall = networking.NetworkPolicy{
 	ObjectMeta: metav1.ObjectMeta{
 		Name: "defaultdenyall",
