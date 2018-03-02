@@ -19,26 +19,26 @@ Kubepox implements the following logic:
 
 - Return all the NetworkPolicies that apply to a pod out of a list:
 ```
-func ListPoliciesPerPod(pod *api.Pod, allPolicies *networking.NetworkPolicyList) (*networking.NetworkPolicyList, error)
+func ListPoliciesPerPod(pod *api.Pod, allPolicies *networking.NetworkPolicyList)
 ```
 - Return the list of Ingress or Egress Rules (from NetworkPolicies) that apply to a pod:
 ```
-func ListIngressRulesPerPod(pod *api.Pod, allPolicies *networking.NetworkPolicyList) (*[]networking.NetworkPolicyIngressRule, error)
-func ListEgressRulesPerPod(pod *api.Pod, allPolicies *networking.NetworkPolicyList) (*[]networking.NetworkPolicyEgressRule, error)
+func ListIngressRulesPerPod(pod *api.Pod, allPolicies *networking.NetworkPolicyList)
+func ListEgressRulesPerPod(pod *api.Pod, allPolicies *networking.NetworkPolicyList)
 ```
 - List all the pods (out of a pod list) that get affected by a policy:
 ```
-func ListPodsPerPolicy(np *networking.NetworkPolicy, allPods *api.PodList) (*api.PodList, error)
+func ListPodsPerPolicy(np *networking.NetworkPolicy, allPods *api.PodList)
 ```
 - Decide if a  policy applies to Ingress and//or Egress:
 ```
-func IsPolicyApplicableToIngress(policy *networking.NetworkPolicy) bool
-func IsPolicyApplicableToEgress(policy *networking.NetworkPolicy) bool
+func IsPolicyApplicableToIngress(policy *networking.NetworkPolicy)
+func IsPolicyApplicableToEgress(policy *networking.NetworkPolicy)
 ```
 
 - Decide if a Pod gets affected on Ingress//Egress by at least one of the Policies out of a list:
 ```
-func IsPodSelected(pod *api.Pod, policies *networking.NetworkPolicyList) (bool, bool, error)
+func IsPodSelected(pod *api.Pod, policies *networking.NetworkPolicyList)
 ```
 
 
