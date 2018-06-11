@@ -42,7 +42,9 @@ func IsPodSelected(pod *api.Pod, policies *networking.NetworkPolicyList)
 
 ## CLI implementation
 
-As an example, Kubepox can be used with a CLI tool that connects to Kubernetes API  in order to display the policy logic
+As an example, Kubepox can be used with a CLI tool that connects to Kubernetes API  in order to display the policy logic.
+
+The CLI example doesn't support Egress or CIDR rules yet.
 
 ```
 Usage:
@@ -58,9 +60,9 @@ Options:
 ## How does it work ?
 
 * `kubepox get-all`  retrieves all the NetworkPolicies and Pods. (JSON output, but same API objects as with Kubectl)
-* `kubepox get-pods`  retrieves the  podList of affected pods based on a specific policy.
-* `kubepox get-policies` retrieves all the policies that apply to a specific pod
-* `kubepox get-rules` retrieves all the rules that apply to a specific rule (union of policy rules)
+* `kubepox get-pods`  retrieves the  podList of affected pods based on a specific policy. (doesn't support egress yet)
+* `kubepox get-policies` retrieves all the policies that apply to a specific pod. (doesn't support egress yet)
+* `kubepox get-rules` retrieves all the rules that apply to a specific rule (union of policy rules). (doesn't support egress yet)
 
 ## Example: Rules applied per pod
 
