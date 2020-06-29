@@ -7,6 +7,9 @@ DOCKER_REGISTRY?=aporeto
 DOCKER_IMAGE_NAME?=$(PROJECT_NAME)
 DOCKER_IMAGE_TAG?=$(BUILD_NUMBER)
 
+deps:
+	go get -v ./...
+
 codegen:
 	echo 'package version' > $(VERSION_FILE)
 	echo '' >> $(VERSION_FILE)
@@ -31,3 +34,6 @@ docker_push: docker_build
 	docker \
 		push \
 		$(DOCKER_REGISTRY)/$(DOCKER_IMAGE_NAME):$(DOCKER_IMAGE_TAG)
+
+binary: deps build
+	mv main kubepox

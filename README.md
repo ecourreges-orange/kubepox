@@ -140,3 +140,16 @@ spec:
        port: 8000
 
 ```
+
+# BUILD
+Assuming you have a proper GOROOT and GOPATH in your environment
+Just type:
+```
+make binary
+```
+
+# INSTALLATION
+
+```
+sudo cp kubepox /usr/local/bin
+```

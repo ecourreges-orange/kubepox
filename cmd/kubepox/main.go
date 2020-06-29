@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
 	"strconv"
 	"text/tabwriter"
+	"time"
 
 	"github.com/aporeto-inc/kubepox"
 
@@ -19,6 +21,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
+	_ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 )
 
 //Todo: Make it clean and a real executable with flags.
@@ -42,6 +45,8 @@ func main() {
 	`
 
 	arguments, _ := docopt.Parse(usage, nil, true, "KubePox", false)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(5000)*time.Millisecond)
 
 	// Get location of the Kubeconfig file. By default in your home.
 	var kubeconfig string
@@ -74,7 +79,7 @@ func main() {
 	// Display all policies. Similar to kubectl describe policies in json
 	if arguments["get-all"].(bool) && arguments["policies"].(bool) {
 
-		policies, err := myClient.Networking().NetworkPolicies(namespace).List(metav1.ListOptions{})
+		policies, err := myClient.NetworkingV1().NetworkPolicies(namespace).List(ctx, metav1.ListOptions{})
 		if err != nil {
 			fmt.Printf("Couldn't get Network Policy: %v\n", err)
 			os.Exit(1)
@@ -85,7 +90,7 @@ func main() {
 	// Display all pods. Similar to kubectl describe pods in json
 	if arguments["get-all"].(bool) && arguments["pods"].(bool) {
 
-		pods, err := myClient.CoreV1().Pods(namespace).List(metav1.ListOptions{})
+		pods, err := myClient.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
 		if err != nil {
 			fmt.Printf("Couldn't get all the pods %v\n", err)
 			os.Exit(1)
@@ -97,12 +102,12 @@ func main() {
 	// Get all the pods that get affected by the policy
 	if arguments["get-pods"].(bool) {
 		// Get the Policy in argument
-		np, err := myClient.Networking().NetworkPolicies(namespace).Get(arguments["<policy>"].(string), metav1.GetOptions{})
+		np, err := myClient.NetworkingV1().NetworkPolicies(namespace).Get(ctx, arguments["<policy>"].(string), metav1.GetOptions{})
 		if err != nil {
 			fmt.Printf("Couldn't get Network Policy: %v\n", err)
 			os.Exit(1)
 		}
-		allPods, err := myClient.CoreV1().Pods(namespace).List(metav1.ListOptions{})
+		allPods, err := myClient.CoreV1().Pods(namespace).List(ctx, metav1.ListOptions{})
 		if err != nil {
 			fmt.Printf("Couldn't get all the pods %v\n", err)
 			os.Exit(1)
@@ -120,13 +125,13 @@ func main() {
 	// Get all the policies that get applied to a Pod.
 	if arguments["get-policies"].(bool) {
 
-		pod, err := myClient.CoreV1().Pods(namespace).Get(arguments["<pod>"].(string), metav1.GetOptions{})
+		pod, err := myClient.CoreV1().Pods(namespace).Get(ctx, arguments["<pod>"].(string), metav1.GetOptions{})
 		if err != nil {
 			fmt.Printf("Couldn't get target pod %v\n", err)
 			os.Exit(1)
 		}
 
-		allPolicies, err := myClient.Networking().NetworkPolicies(namespace).List(metav1.ListOptions{})
+		allPolicies, err := myClient.NetworkingV1().NetworkPolicies(namespace).List(ctx, metav1.ListOptions{})
 		if err != nil {
 			fmt.Printf("Couldn't get all Network Policies: %v\n", err)
 		}
@@ -144,13 +149,13 @@ func main() {
 	// Get all the IngressRules that get applied to a Pod.
 	if arguments["get-rules"].(bool) {
 
-		pod, err := myClient.CoreV1().Pods(namespace).Get(arguments["<pod>"].(string), metav1.GetOptions{})
+		pod, err := myClient.CoreV1().Pods(namespace).Get(ctx, arguments["<pod>"].(string), metav1.GetOptions{})
 		if err != nil {
 			fmt.Printf("Couldn't get target pod %v\n", err)
 			os.Exit(1)
 		}
 
-		allPolicies, err := myClient.Networking().NetworkPolicies(namespace).List(metav1.ListOptions{})
+		allPolicies, err := myClient.NetworkingV1().NetworkPolicies(namespace).List(ctx, metav1.ListOptions{})
 		if err != nil {
 			fmt.Printf("Couldn't get all Network Policies: %v\n", err)
 			os.Exit(1)
@@ -169,7 +174,7 @@ func main() {
 		renderIngressRules(matchedRules)
 
 	}
-
+	defer cancel()
 }
 
 func renderPolicies(policies *networking.NetworkPolicyList) {

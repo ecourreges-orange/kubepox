@@ -4,4 +4,4 @@ package version
 const VERSION = "0.1"
 
 // REVISION is the revision of kubepox
-const REVISION = "f26a0e5157bb4c37c872112f327cc3443ef15970"
+const REVISION = "0fb28375c9a9e578625c6de03b7b4e48125f3d89"
