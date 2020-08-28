@@ -145,7 +145,7 @@ spec:
 Assuming you have a proper GOROOT and GOPATH in your environment
 Just type:
 ```
-make binary
+make build
 ```
 
 # INSTALLATION

@@ -17,7 +17,7 @@ codegen:
 	echo '// REVISION is the revision of kubepox' >> $(VERSION_FILE)
 	echo 'const REVISION = "$(REVISION)"' >> $(VERSION_FILE)
 
-binary: codegen
+build: codegen
 	CGO_ENABLED=1 go build -o kubepox -installsuffix cgo cmd/kubepox/main.go
 
 package: binary
